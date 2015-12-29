@@ -21,7 +21,7 @@ limitations under the License.
 {DEFAULT @cdm_database = 'CDM4_SIM' } 
 {DEFAULT @cohort_database_schema = 'CDM4_SIM' } 
 {DEFAULT @cohort_table = 'cohort' } 
-{DEFAULT @cohort_ids = '0,1' }
+{DEFAULT @cohort_ids = '1' }
 {DEFAULT @washout_window = 183 }
 {DEFAULT @cdm_version == '4'}
 {DEFAULT @cohort_definition_id = 'cohort_concept_id'} 
@@ -34,13 +34,18 @@ IF OBJECT_ID('tempdb..#cohort_person', 'U') IS NOT NULL
 	DROP TABLE #cohort_person;
 	
 SELECT ROW_NUMBER() OVER (ORDER BY subject_id, cohort_start_date) AS row_id,
-  	@cohort_definition_id,
+  @cohort_ids	as @cohort_definition_id,
 	subject_id,
 	cohort_start_date,
-	cohort_end_date
+	cohort_end_date,
+	prior_index_obs,
+	post_index_obs,
+	cohort_obs_incomplete
 INTO #cohort_person
 FROM (
-	SELECT DISTINCT @cohort_definition_id,
+	SELECT DISTINCT @cohort_definition_id, DATEDIFF(DAY, observation_period_start_date, cohort_start_date) prior_index_obs,
+	DATEDIFF(DAY, cohort_start_date, observation_period_end_date) post_index_obs,
+	case when  observation_period_end_date < cohort_end_date then 1 else 0 end cohort_obs_incomplete,
 		subject_id,
 		cohort_start_date,
 {@use_cohort_end_date} ? {
@@ -59,7 +64,7 @@ FROM (
 	ON cohort.subject_id = observation_period.person_id
 	WHERE cohort_start_date >= observation_period_start_date 
 	AND cohort_start_date <= observation_period_end_date 
-{@cohort_concept_ids != ''} ? {
+{@cohort_ids != ''} ? {
 	AND @cohort_definition_id IN (@cohort_ids)
 } 
 	AND cohort_start_date >= DATEADD(DAY, @washout_window, observation_period_start_date) 

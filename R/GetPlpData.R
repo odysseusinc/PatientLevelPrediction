@@ -96,8 +96,11 @@ getDbPlpData <- function(connectionDetails = NULL,
                          outcomeDatabaseSchema = cdmDatabaseSchema,
                          outcomeTable = "condition_occurrence",
                          outcomeIds = c(),
+                         outcomeIdsExclude = c(),
+                         startAdd = 0,
                          outcomeConditionTypeConceptIds = "",
                          firstOutcomeOnly = FALSE,
+                         excludeHistory = FALSE,
                          cdmVersion = "4") {
   conn <- connect(connectionDetails)
 
@@ -109,6 +112,7 @@ getDbPlpData <- function(connectionDetails = NULL,
     measurement <- "observation"
   } else {
     cohortDefinitionId <- "cohort_definition_id"
+    cohortDefinitionId <- "cohort_concept_id"
     conceptClassId <- "concept_class_id"
     measurement <- "measurement"
   }
@@ -133,7 +137,7 @@ getDbPlpData <- function(connectionDetails = NULL,
   DatabaseConnector::executeSql(conn, renderedSql)
   writeLines("Fetching data from server")
   start <- Sys.time()
-  cohortsSql <- "SELECT row_id, subject_id AS person_id, cohort_start_date, @cohort_definition_id AS cohort_id, DATEDIFF(DAY, cohort_start_date, cohort_end_date) AS time FROM #cohort_person ORDER BY row_id"
+  cohortsSql <- "SELECT row_id, subject_id AS person_id, cohort_start_date, @cohort_definition_id AS cohort_id, DATEDIFF(DAY, cohort_start_date, cohort_end_date) AS time, 	prior_index_obs, post_index_obs, cohort_obs_incomplete FROM #cohort_person ORDER BY row_id"
   cohortsSql <- SqlRender::renderSql(cohortsSql, cohort_definition_id = cohortDefinitionId)$sql
   cohortsSql <- SqlRender::translateSql(cohortsSql,
                                         "sql server",
@@ -141,6 +145,7 @@ getDbPlpData <- function(connectionDetails = NULL,
                                         oracleTempSchema)$sql
   cohorts <- DatabaseConnector::querySql.ffdf(conn, cohortsSql)
   colnames(cohorts) <- SqlRender::snakeCaseToCamelCase(colnames(cohorts))
+  writeLines(paste0('found: ',nrow(cohorts),' cohort people'))
   if (nrow(cohorts) != 0) {
     open(cohorts)
   }
@@ -160,6 +165,9 @@ getDbPlpData <- function(connectionDetails = NULL,
                                                    outcome_ids = outcomeIds,
                                                    outcome_condition_type_concept_ids = outcomeConditionTypeConceptIds,
                                                    first_outcome_only = firstOutcomeOnly,
+                                                   start_add=startAdd,
+                                                   exclude_history=excludeHistory,
+                                                   outcome_ids_exclude=outcomeIdsExclude,
                                                    cdm_version = cdmVersion,
                                                    cohort_definition_id = cohortDefinitionId)
 
@@ -175,13 +183,15 @@ getDbPlpData <- function(connectionDetails = NULL,
                                         oracleTempSchema)$sql
   outcomes <- DatabaseConnector::querySql.ffdf(conn, outcomeSql)
   colnames(outcomes) <- SqlRender::snakeCaseToCamelCase(colnames(outcomes))
+  writeLines(paste0('found: ',nrow(outcomes),' outcome people'))
+  
   if (nrow(outcomes) == 0) {
     warning("No outcome data found")
   } else {
     open(outcomes)
   }
-  if (firstOutcomeOnly) {
-    excludeSql <- "SELECT row_id, outcome_id FROM #cohort_excluded_person ORDER BY outcome_id, person_id"
+  if (firstOutcomeOnly | excludeHistory) {
+    excludeSql <- "SELECT row_id, outcome_id, time FROM #cohort_excluded_person ORDER BY outcome_id, person_id"
     excludeSql <- SqlRender::translateSql(excludeSql,
                                           "sql server",
                                           attr(conn, "dbms"),

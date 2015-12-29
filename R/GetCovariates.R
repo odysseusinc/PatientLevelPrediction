@@ -76,13 +76,14 @@ getDbCovariateData <- function(connection,
           # TODO: handle overlap in covariate ID space
           covariateData$covariates <- ffbase::ffdfappend(covariateData$covariates,
                                                          tempCovariateData$covariates)
-          covariateData$covariateRef <- ffbase::ffdfappend(covariateData$covariateRef,
-                                                           tempCovariateData$covariateRef)
+          covariateData$covariateRef <- ffbase::as.ffdf(rbind(as.ram(covariateData$covariateRef),
+                                                      as.ram(tempCovariateData$covariateRef)))
           for (name in names(tempCovariateData$metaData)) {
-            if (is.null(covariateData$metaData[name])) {
+            if (is.null(covariateData$metaData[name]) ) {
               covariateData$metaData[name] <- tempCovariateData$metaData[name]
             } else {
-              covariateData$metaData[name] <- list(covariateData$metaData[name], tempCovariateData$metaData[name])
+              if(!is.null(tempCovariateData$metaData[name])){
+              covariateData$metaData[name] <- list(covariateData$metaData[name], tempCovariateData$metaData[name])}
             }
           }
         }
