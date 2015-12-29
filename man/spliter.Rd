@@ -19,6 +19,8 @@ people who are in the test set.}
 \item{'both'}{Split the data into (1-frac) train set and frac test set.
 This is stratified by the outcome}
 }}
+
+\item{frac}{The fraction of people who will go into the test set}
 }
 \value{
 A list with the training set as the first element and the testing set as the second element

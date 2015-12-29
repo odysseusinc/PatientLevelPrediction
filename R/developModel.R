@@ -600,7 +600,7 @@ predictPlp <- function(plpModel, plpData){
 #'                                         \item{'both'}{Split the data into (1-frac) train set and frac test set.
 #'                                         This is stratified by the outcome}
 #'                                         }
-#' @pram frac                              The fraction of people who will go into the test set
+#' @param frac                              The fraction of people who will go into the test set
 #'
 #'
 #' @return

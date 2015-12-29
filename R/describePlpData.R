@@ -1,3 +1,23 @@
+#' describePlpData
+#'
+#' @details
+#' Describes the data
+#'
+#' @param plpData               An object of type \code{plpData}.
+#' @param covariateVals         A vector of the covariateIds to focus on
+#' @param cdmDatabase           The database the data comes from
+#' @param outcomeId             The outcome of interest
+#' @param agehist               Whether to plot a histogram of ages
+#' @param plot                  Whether to plot results
+#' @param plotFile              Location to save plot 
+#' @param saveTable             Whether to save results
+#' @param tableFile             Location to save results table 
+#' @param outcomeName           Outcome name to be used on plots
+#' @param cohortName            Cohort name to be used on plots
+#' @param perYear               Whether to do descriptive stats per year
+#' 
+#' @export
+
 # plots description of censored data and saves into csv
 describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
                             outcomeId =2,
@@ -6,6 +26,7 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
                             outcomeName='Pregnancy with GDM',
                             cohortName='Total pregnancy',
                             perYear=T){
+  require(ggplot2)
   outcome <- ff::clone(plpData$outcomes)
   t <- outcome$outcomeId==outcomeId
   outcome <- outcome[ffbase::ffwhich(t,t==T),]
@@ -21,7 +42,7 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
   
   # calculate: year, people in cohort, outcome count, prevalance
   if(perYear==T){
-    all <- ffbase::merge(plpData$cohorts, outcome, by='rowId', all.x=T)
+    all <- merge(plpData$cohorts, outcome, by='rowId', all.x=T)
     
     years <- sapply(X=ff::as.ram(all$cohortStartDate), FUN=function(x) substring(as.character(x),1,4))
     years <- as.double(years)
@@ -70,13 +91,13 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
     if('riskFactors'%in%covariateVals) # add covariates
       covariateVals <- c(covariateVals[!covariateVals%in%'riskFactors'],-2:-16)
     if('age'%in%covariateVals) # add the ages
-      covariateVals <- c(covariateVals[!covariateVals%in%'age'], covref$covariateId[substring(as.ram(covref$covariateName),1,4)=='Age '])
+      covariateVals <- c(covariateVals[!covariateVals%in%'age'], covref$covariateId[substring(ff::as.ram(covref$covariateName),1,4)=='Age '])
       
 
     gdmCount <- nrow(outcome)
     allCount <- nrow(plpData$cohorts)
     
-    outcomes <- ffbase::merge(plpData$cohorts, outcome, by='rowId', all.x=T)
+    outcomes <- merge(plpData$cohorts, outcome, by='rowId', all.x=T)
     t <- is.na(outcomes$outcomeCount)
     gdm <- outcomes[ffbase::ffwhich(t, t==F),]
     
@@ -85,10 +106,10 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
                  table= ff::ff(as.double(covariateVals))
                  )
     covariates <- covariates[ffbase::ffwhich(t, !is.na(t)),]
-    covariates <- ffbase::merge(covariates, ff::as.ffdf(covref), by='covariateId', all.x=T)
+    covariates <- merge(covariates, ff::as.ffdf(covref), by='covariateId', all.x=T)
     
-    all.gdm <- ffbase::merge(covariates, gdm, by='rowId')
-    all.ppl <- ffbase::merge(covariates, outcomes, by='rowId')
+    all.gdm <- merge(covariates, gdm, by='rowId')
+    all.ppl <- merge(covariates, outcomes, by='rowId')
   
     GDM <- aggregate(ff::as.ram(all.gdm$outcomeCount>0), list(covariateId= ff::as.ram(all.gdm$covariateName)), sum)
     colnames(GDM)[2] <- outcomeName
@@ -98,7 +119,7 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
     allPlp[,2] <- allPlp[,2]/allCount
     out.dat <- merge(GDM, allPlp, by='covariateId', all=T)
     out.dat[is.na(out.dat)] <- 0
-    out.dat2 <- melt(out.dat, 'covariateId')
+    out.dat2 <- reshape2::melt(out.dat, 'covariateId')
     
     
     # plot the results:
@@ -123,10 +144,10 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
                    table= ff::ff(as.double(covariateVals))
       )
       covariates <- covariates[ffbase::ffwhich(t, !is.na(t)),]
-      covariates <- ffbase::merge(covariates, as.ffdf(covref), by='covariateId', all.x=T)
+      covariates <- merge(covariates, ff::as.ffdf(covref), by='covariateId', all.x=T)
       
-      all.gdm <- ffbase::merge(covariates, gdm, by='rowId')
-      all.ppl <- ffbase::merge(covariates, outcomes, by='rowId')
+      all.gdm <- merge(covariates, gdm, by='rowId')
+      all.ppl <- merge(covariates, outcomes, by='rowId')
       
       writeLines(paste0('gdm:',nrow(all.gdm), '- all:',nrow(all.ppl) ))
       
