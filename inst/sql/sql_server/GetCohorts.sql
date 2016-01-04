@@ -46,9 +46,7 @@ FROM (
 	SELECT DISTINCT @cohort_definition_id, DATEDIFF(DAY, observation_period_start_date, cohort_start_date) prior_index_obs,
 	DATEDIFF(DAY, cohort_start_date, observation_period_end_date) post_index_obs,
 	
-	{@cohort_ids != ''} ? {
-  @cohort_definition_id
-}:{1} as @cohort_definition_id,
+	{@cohort_ids != ''} ? { @cohort_definition_id}:{1 as @cohort_definition_id} ,
 	
 	case when  observation_period_end_date < cohort_end_date then 1 else 0 end cohort_obs_incomplete,
 		subject_id,
