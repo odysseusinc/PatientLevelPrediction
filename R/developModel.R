@@ -704,14 +704,14 @@ spliter <- function(plpData, type, frac){
     split[[1]] <- list(outcomes = outcomes.test,
                        cohorts = cohorts.test,
                        covariates = covariates.test,
-                       covariateRef = clone(plpData$covariateRef),
+                       covariateRef = ff::clone(plpData$covariateRef),
                        metaData=plpData$metaData
     )
 
     split[[2]] <- list(outcomes = outcomes.val,
                        cohorts = cohorts.val,
                        covariates = covariates.val,
-                       covariateRef = clone(plpData$covariateRef),
+                       covariateRef = ff::clone(plpData$covariateRef),
                        metaData=plpData$metaData
     )
 

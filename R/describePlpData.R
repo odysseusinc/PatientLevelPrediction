@@ -19,7 +19,7 @@
 #' @export
 
 # plots description of censored data and saves into csv
-describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
+describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase=NULL,
                             outcomeId =2,
                             agehist=TRUE,
                             plot=T, plotFile=NULL, saveTable=T, tableFile=NULL,
@@ -27,6 +27,9 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
                             cohortName='Total pregnancy',
                             perYear=T){
   require(ggplot2)
+  out.dat <- NULL
+  yearSummary <- NULL
+  
   outcome <- ff::clone(plpData$outcomes)
   t <- outcome$outcomeId==outcomeId
   outcome <- outcome[ffbase::ffwhich(t,t==T),]
@@ -77,7 +80,8 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
     print(ggplot2::ggplot(data=out.years, aes(x=as.factor(year), y=prevalance)) +
             geom_bar(stat="identity") +
             xlab("Year") + ylab("Prevalence") +
-            ggtitle(paste0("Outcome prevalence by year for ",cdmDatabase )) +
+            ggtitle(paste0("Outcome prevalence by year for ",
+                           ifelse(!is.null(cdmDatabase),cdmDatabase,'database') )) +
             theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) )
     if(!is.null(plotFile)) 
       dev.off()
@@ -86,7 +90,7 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
   
   
   # plot covariates frequencies in total, outcome and non-outcome groups
-  if(!is.na(covariateVals)){
+  if(!is.null(covariateVals)){
     covref <- ff::clone(plpData$covariateRef)
     if('riskFactors'%in%covariateVals) # add covariates
       covariateVals <- c(covariateVals[!covariateVals%in%'riskFactors'],-2:-16)
@@ -103,7 +107,7 @@ describePlpData <- function(plpData, covariateVals=NULL, cdmDatabase,
     
     covariates <- ff::clone(plpData$covariates)
     t <- ffbase::ffmatch(covariates$covariateId, 
-                 table= ff::ff(as.double(covariateVals))
+                 table= ff::as.ff(as.double(covariateVals))
                  )
     covariates <- covariates[ffbase::ffwhich(t, !is.na(t)),]
     covariates <- merge(covariates, ff::as.ffdf(covref), by='covariateId', all.x=T)

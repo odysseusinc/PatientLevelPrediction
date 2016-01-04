@@ -181,7 +181,10 @@ censorPlpData <- function(plpData, outcomeTime=NULL, newOutcome=NULL,
         exclude.main <- excluded
       if(!is.null(exclude.main))
         exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
-      cohorts <- cohorts[ffbase::ffwhich(t,t==T),]
+      if(sum(t==T)>0)
+        cohorts <- cohorts[ffbase::ffwhich(t,t==T),]
+      if(sum(t==T)==0)
+        cohorts <- NULL
       writeLines(paste0('Excluded ', nrow(excluded), ' cohort rows'))
     }
     if(sum(t)==0){

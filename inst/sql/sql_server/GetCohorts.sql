@@ -34,7 +34,7 @@ IF OBJECT_ID('tempdb..#cohort_person', 'U') IS NOT NULL
 	DROP TABLE #cohort_person;
 	
 SELECT ROW_NUMBER() OVER (ORDER BY subject_id, cohort_start_date) AS row_id,
-  @cohort_ids	as @cohort_definition_id,
+  @cohort_definition_id,
 	subject_id,
 	cohort_start_date,
 	cohort_end_date,
@@ -45,6 +45,11 @@ INTO #cohort_person
 FROM (
 	SELECT DISTINCT @cohort_definition_id, DATEDIFF(DAY, observation_period_start_date, cohort_start_date) prior_index_obs,
 	DATEDIFF(DAY, cohort_start_date, observation_period_end_date) post_index_obs,
+	
+	{@cohort_ids != ''} ? {
+  @cohort_definition_id
+}:{1} as @cohort_definition_id,
+	
 	case when  observation_period_end_date < cohort_end_date then 1 else 0 end cohort_obs_incomplete,
 		subject_id,
 		cohort_start_date,
