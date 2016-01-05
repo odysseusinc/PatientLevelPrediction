@@ -44,10 +44,10 @@ fitPredictiveModel <- function(plpData,
                                control = createControl(noiseLevel = "silent",
                                                        cvType = "auto",
                                                        startingVariance = 0.1)) {
-  if (is.null(cohortId) && length(plpData$metaData$cohortIds) != 1) {
+  if (is.null(cohortId) && length(plpData$metaData$cohortIds) > 1) {
     stop("No cohort ID specified, but multiple cohorts found")
   }
-  if (is.null(outcomeId) && length(plpData$metaData$outcomeIds) != 1) {
+  if (is.null(outcomeId) && length(plpData$metaData$outcomeIds) > 1) {
     stop("No outcome ID specified, but multiple outcomes found")
   }
   if (!is.null(cohortId) && !(cohortId %in% plpData$metaData$cohortIds)) {
@@ -63,9 +63,9 @@ fitPredictiveModel <- function(plpData,
   cohorts <- plpData$cohorts
   outcomes <- plpData$outcomes
   
-  if (!is.null(cohortId) && length(plpData$metaData$cohortIds) > 1) {
+  if (!is.null(cohortId) && length(plpData$metaData$cohortIds) > 1 && sum(!plpData$metaData$cohortIds%in%cohortId)>0) {
     # Filter by cohort ID:
-    t <- cohorts$cohortId == cohortId
+    t <- ffbase::ffmatch(x=cohorts$cohortId, table= ff::as.ff(cohortId))
     if (!ffbase::any.ff(t)) {
       stop(paste("No cohorts with cohort ID", cohortId))
     }

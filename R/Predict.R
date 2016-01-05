@@ -36,10 +36,10 @@ predictProbabilities <- function(predictiveModel, plpData) {
   covariates <- plpData$covariates
   cohorts <- plpData$cohorts
 
-  if (length(plpData$metaData$cohortIds) > 1) {
+  if (length(plpData$metaData$cohortIds) > 1 && sum(!plpData$metaData$cohortIds%in%predictiveModel$cohortId)>0) {
     # Filter by cohort ID:
     cohortId <- predictiveModel$cohortId
-    t <- cohorts$cohortId == cohortId
+    t <- ffbase::ffmatch(x=cohorts$cohortId, table= ff::as.ff(cohortId))
     if (!ffbase::any.ff(t)) {
       stop(paste("No cohorts with cohort ID", cohortId))
     }

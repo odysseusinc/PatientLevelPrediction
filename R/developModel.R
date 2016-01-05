@@ -79,7 +79,7 @@
 developModel <- function(plpData,
                          modelSettings=list(model='lr-lasso', param=NULL,
                                             cohortId=NULL, outcomeId=2),
-                         featureSettings = list(analysisSelector=c(-(1:16),4,201,505),
+                         featureSettings = list(analysisSelector=NULL,
                                                 covariateSelector=NULL,
                                                 wrapper=list(method='lr-lasso', variance=0.01),
                                                 matrixFactor=F),
@@ -259,11 +259,13 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     #perform the feature reducion:
-    plpData <- featureReducer(plpData, analysisSelector=featureSettings$analysisSelector,
-                              covariateSelector=featureSettings$covariateSelector,
-                              wrapper=featureSettings$wrapper,
-                              cohortId = featureSettings$cohortId, outcomeId = featureSettings$outcomeId,
-                              matrixFactor=featureSettings$matrixFactor)
+    ##plpData <- featureReducer(plpData, analysisSelector=featureSettings$analysisSelector,
+    ##                          covariateSelector=featureSettings$covariateSelector,
+    ##                          wrapper=featureSettings$wrapper,
+    ##                          cohortId = featureSettings$cohortId, outcomeId = featureSettings$outcomeId,
+    ##                          matrixFactor=featureSettings$matrixFactor)
+    featureSettings$plpData <- plpData
+    plpData <- do.call(featureReducer,featureSettings )
     if(is.null(plpData$covariates))
       return('no cov')
     # now convert into h2o matrix
@@ -319,7 +321,7 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
                               tuneGrid = tuneGrid,
                               maxit=500,MaxNWts=20000)
 
-        param.string <- paste(paste0(names(tuneGrid),':',tuneGrid[which.max(model$results$ROC),]), collapse=',')
+        param.string <- paste(paste0(c('size','decay'),':',model$results[which.max(model$results$ROC),c('size','decay')]), collapse=',')
         writeLines(paste0('Neural Network with parameters ',param.string,' obtained AUC: ', model$results$ROC[which.max(model$results$ROC)]))
 
         param.best <- model$results[which.max(model$results$ROC),]
@@ -383,7 +385,7 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
       writeLines(paste0('Loading into h2o data frame' ))
       start <- Sys.time()
       h2oData <- h2o::h2o.importFile(path = saveLoc2, header = T)
-      h2oData$outcomeCount <- as.factor(1*(h2oData$outcomeCount>0))
+      h2oData$outcomeCount <- h2o::as.factor(1*(h2oData$outcomeCount>0))
       writeLines(paste0('Loading took: ', format(Sys.time()-start, digits=3)))
 
 
@@ -409,11 +411,11 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
         }
 
         # default grid search:
-        if(is.null(param))
-          param <- split(expand.grid(bal=c(T,F), mtries=c(-1), ntrees=c(20,50,100)), 1:6)
         if(!is.null(param))
           param <- do.call(paramSettings, param)
-
+        if(is.null(param))
+          param <- split(expand.grid(bal=c(T,F), mtries=c(-1), ntrees=c(20,50,100)), 1:6)
+        
         res <- lapply(param, function(x) do.call(rfTrainer, x ))
         modelTrained <- res[[which.max(unlist(lapply(res, function(x) x$auc)))]]$model
         param.best <- param[[which.max(unlist(lapply(res, function(x) x$auc)))]]
@@ -436,10 +438,11 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
         }
 
         # default grid search:
-        if(is.null(param))
-          param <- split(expand.grid(lamba=c(0.000001), alpha=c(0,0.2,0.5)), 1:3)
         if(!is.null(param))
           param <- do.call(paramSettings, param)
+        if(is.null(param))
+          param <- split(expand.grid(lamba=c(0.000001), alpha=c(0,0.2,0.5)), 1:3)
+
 
         res <- lapply(param, function(x) do.call(glmTrainer, x ))
         modelTrained <- res[[which.max(unlist(lapply(res, function(x) x$auc)))]]$model
@@ -464,11 +467,11 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
         }
 
         # default grid search:
-        if(is.null(param))
-          param <- split(expand.grid(bal=c(T,F), rsampRate=c(0.7,0.9,1), ntrees=c(20,50,100)), 1:18)
         if(!is.null(param))
           param <- do.call(paramSettings, param)
-
+        if(is.null(param))
+          param <- split(expand.grid(bal=c(T,F), rsampRate=c(0.7,0.9,1), ntrees=c(20,50,100)), 1:18)
+        
         res <- lapply(param, function(x) do.call(gbmTrainer, x ))
         modelTrained <- res[[which.max(unlist(lapply(res, function(x) x$auc)))]]$model
         param.best <- param[[which.max(unlist(lapply(res, function(x) x$auc)))]]
@@ -564,7 +567,7 @@ predictPlp <- function(plpModel, plpData){
     # if plpModel$features in not null filter non features from covariates
     if(!is.null(plpModel$metaData$usedCovariateIds)){
       t <- ffbase::ffmatch(covariates$covariateId, table=ff::as.ff(plpModel$metaData$usedCovariateIds$covariateId))
-      covariates <- covariates[ffwhich(t, !is.na(t)),]
+      covariates <- covariates[ffbase::ffwhich(t, !is.na(t)),]
     }
 
     # now convert into matrix using reshape2::dcast

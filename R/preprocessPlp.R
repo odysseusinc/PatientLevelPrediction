@@ -74,9 +74,9 @@
 #' @export
 
 
-featureReducer <- function(plpData, analysisSelector=c(-(1:16),4,201,505),
+featureReducer <- function(plpData, analysisSelector=NULL,
                            covariateSelector=NULL, wrapper=NULL,
-                           matrixFactor=F, outcomeId=1, cohortId=NULL){
+                           matrixFactor=F, outcomeId=2, cohortId=NULL){
 
   riskfact <- NULL
 
