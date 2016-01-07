@@ -6,8 +6,8 @@
 \usage{
 developModel(plpData, modelSettings = list(model = "lr-lasso", param = NULL,
   cohortId = NULL, outcomeId = 2), featureSettings = list(analysisSelector =
-  c(-(1:16), 4, 201, 505), covariateSelector = NULL, wrapper = list(method =
-  "lr-lasso", variance = 0.01), matrixFactor = F), validationFraction = 0.2,
+  NULL, covariateSelector = NULL, wrapper = list(method = "lr-lasso", variance =
+  0.01), matrixFactor = F), validationFraction = 0.2,
   fileLoc = file.path(getwd(), "models"), type = c("year", "both",
   "patient"))
 }

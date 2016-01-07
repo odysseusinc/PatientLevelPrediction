@@ -58,7 +58,7 @@ evaluatePlp <- function(plpPredict, plpData, sparse=T ){
     eval <- sparseMetric(plpPredict, plpData, predLab, aveP=T)
   }
   
-  
+ return(eval) 
 }
 
 sparseMetric <- function(prediction,plpData,predLab, aveP=T){

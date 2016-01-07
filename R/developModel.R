@@ -310,7 +310,7 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
                                    verboseIter = FALSE,classProbs = TRUE,
                                    summaryFunction=twoClassSummary)
 
-        model <- caret::train(x=allData[,!colnames(allData)%in%c('outcomeCount','rowId')],
+        model1 <- caret::train(x=allData[,!colnames(allData)%in%c('outcomeCount','rowId')],
                               y=as.factor(allData$outcomeCount),
                               method = "nnet",
                               #preProcess = NULL,
@@ -321,14 +321,14 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
                               tuneGrid = tuneGrid,
                               maxit=500,MaxNWts=20000)
 
-        param.string <- paste(paste0(c('size','decay'),':',model$results[which.max(model$results$ROC),c('size','decay')]), collapse=',')
-        writeLines(paste0('Neural Network with parameters ',param.string,' obtained AUC: ', model$results$ROC[which.max(model$results$ROC)]))
+        param.string <- paste(paste0(c('size','decay'),':',model1$results[which.max(model1$results$ROC),c('size','decay')]), collapse=',')
+        writeLines(paste0('Neural Network with parameters ',param.string,' obtained AUC: ', model1$results$ROC[which.max(model1$results$ROC)]))
 
-        param.best <- model$results[which.max(model$results$ROC),]
+        param.best <- model1$results[which.max(model1$results$ROC),c('size','decay')]
 
-        result <- list(model = model,
+        result <- list(model = model1,
                        modelLoc = NULL,
-                       trainAuc = model$results$ROC[which.max(model$results$ROC)],
+                       trainAuc = model1$results$ROC[which.max(model1$results$ROC)],
                        trainCalibration= NULL,
                        modelSettings = list(model=model,modelParameters=param.best,
                                             featureSettings=featureSettings,
@@ -347,7 +347,7 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
                                    verboseIter = FALSE,returnResamp = "all",classProbs = TRUE,
                                    summaryFunction=twoClassSummary)
 
-        model <- caret::train(x=allData[,!colnames(allData)%in%c('outcomeCount','rowId')],
+        model1 <- caret::train(x=allData[,!colnames(allData)%in%c('outcomeCount','rowId')],
                               y=as.factor(allData$outcomeCount),
                               method = "nb",
                               preProcess = NULL,
@@ -356,9 +356,9 @@ fitPlp <- function(model,param, featureSettings, outcomeId, cohortId, data, loc)
                               maximize = TRUE,
                               trControl = fitControl)
 
-        writeLines(paste0('Naive Bayes obtained AUC: ', model$results$ROC))
+        writeLines(paste0('Naive Bayes obtained AUC: ', model1$results$ROC))
 
-        result <- list(model = model,
+        result <- list(model = model1,
                        modelLoc = NULL,
                        trainAuc = model$results$ROC,
                        trainCalibration= NULL,

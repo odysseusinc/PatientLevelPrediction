@@ -4,9 +4,9 @@
 \alias{describePlpData}
 \title{describePlpData}
 \usage{
-describePlpData(plpData, covariateVals = NULL, cdmDatabase, outcomeId = 2,
-  agehist = TRUE, plot = T, plotFile = NULL, saveTable = T,
-  tableFile = NULL, outcomeName = "Pregnancy with GDM",
+describePlpData(plpData, covariateVals = NULL, cdmDatabase = NULL,
+  outcomeId = 2, agehist = TRUE, plot = T, plotFile = NULL,
+  saveTable = T, tableFile = NULL, outcomeName = "Pregnancy with GDM",
   cohortName = "Total pregnancy", perYear = T)
 }
 \arguments{

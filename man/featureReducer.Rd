@@ -4,9 +4,8 @@
 \alias{featureReducer}
 \title{featureReduction}
 \usage{
-featureReducer(plpData, analysisSelector = c(-(1:16), 4, 201, 505),
-  covariateSelector = NULL, wrapper = NULL, matrixFactor = F,
-  outcomeId = 1, cohortId = NULL)
+featureReducer(plpData, analysisSelector = NULL, covariateSelector = NULL,
+  wrapper = NULL, matrixFactor = F, outcomeId = 2, cohortId = NULL)
 }
 \arguments{
 \item{plpData}{An object of type \code{plpData} - the patient level prediction
