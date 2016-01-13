@@ -59,11 +59,11 @@ comparePlp <- function(models){
   
   plotData <- c()
   for(i in 1:length(models)){
-  plotData <- rbind(plotData, 
-                    data.frame(models[[i]]$performance$precision.recall, 
-                    FPR=models[[i]]$performance$roc$FPR,                    
-                    model=rep(paste0('model: ',i), 
-                              nrow(models[[i]]$performance$precision.recall))))
+    plotData <- rbind(plotData, 
+                      data.frame(models[[i]]$performance$precision.recall, 
+                                 FPR=models[[i]]$performance$roc$FPR,                    
+                                 model=rep(paste0('model: ',i), 
+                                           nrow(models[[i]]$performance$precision.recall))))
   }
   
   plot1 <- ggplot2::ggplot(data=plotData, aes(x=FPR, y=TPR, group=model, color=model)) +
@@ -75,26 +75,36 @@ comparePlp <- function(models){
     ggplot2::scale_colour_discrete(name = "Method") +
     geom_abline(intercept = 0, slope = 1, color="grey", 
                 linetype="dashed", size=1)  #+
-    #ggplot2::geom_line(model)
+  #ggplot2::geom_line(model)
   
-  plot2 <- ggplot2::ggplot(data=plotData, aes(x=TPR, y=PPV, group=model, color=model)) +
+  #plot2 <- models[[i]]$performance$calPlot
+  #plot2 <- lapply(models, function(x) x$performance$calPlot + ggtitle("Plant growth"))
+  plotCal <- list()
+  length(plotCal) <- length(models)
+  for(i in 1:length(models)){
+    plotCal[[i]] <- models[[i]]$performance$calPlot + ggtitle(paste0('Model: ',i))
+  }
+  
+  
+  plot3 <- ggplot2::ggplot(data=plotData, aes(x=TPR, y=PPV, group=model, color=model)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
     ggplot2::expand_limits(y=0) +
     ggplot2::xlab("TPR") + ggplot2::ylab("PPV") +
-    ggplot2::ggtitle("Precision-Recall Plot")
+    ggplot2::ggtitle("Precision-Recall Plot") +
+    ggplot2::theme(legend.position="none")
   
-  require(gridExtra)
-
   # Create a table plot
-  tbl1 <- gridExtra::tableGrob(result[,c(1:10)])
-  tbl2 <- gridExtra::tableGrob(result[,c(1,11:19)])
+  tbl1 <- gridExtra::tableGrob(result[,c(1:6,8:11)])
+  tbl2 <- gridExtra::tableGrob(result[,c(1,12:19)])
   # Plot chart and table into one object
-  gridExtra::grid.arrange(gridExtra::arrangeGrob(plot1, plot2, ncol=2), 
+  gridExtra::grid.arrange(gridExtra::arrangeGrob(plot1, plot3, ncol=2), 
                           tbl1,tbl2,
                           nrow=3,
                           as.table=TRUE,
                           heights=c(2,0.5,0.5))
+  #plot the calibration
+  do.call(gridExtra::grid.arrange, c(plotCal, ncol=ceiling(sqrt(length(plotCal)))  ))
   
   return(result)
 }

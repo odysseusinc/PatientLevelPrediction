@@ -47,11 +47,20 @@ evaluatePlp <- function(plpPredict, plpData, sparse=T ){
       aveP <- sum(val/(1:nrow(predLab)))/P
     }
     
+    
+    calPlot <- plotCalibration(plpPredict,
+                               plpData,
+                               removeDropoutsForLr = T,
+                               numberOfStrata = 10,
+                               truncateFraction = 0.01,
+                               fileName = NULL)
+    
     eval <- list(auc=roc$auc, aveP=aveP,
                  roc=roc,
                  raw = metrics[,c('TP','FP','TN','FN','FOR','accuracy')],
                  precision.recall = metrics[,c('TPR','PPV')],
-                 F.measure = metrics[,c('Fmeasure')])
+                 F.measure = metrics[,c('Fmeasure')],
+                 calPlot=calPlot)
     class(eval) <- 'metric.full'
   }
   if(sparse==T & nrow(plpPredict) >=1000 ){
@@ -66,6 +75,13 @@ sparseMetric <- function(prediction,plpData,predLab, aveP=T){
                     plpData,
                     removeDropoutsForLr = F,
                     confidenceInterval = T)
+  
+  calPlot <- plotCalibration(prediction,
+                             plpData,
+                             removeDropoutsForLr = F,
+                             numberOfStrata = 10,
+                             truncateFraction = 0.01,
+                             fileName = NULL)
   
   # now calculate 100 point tpr, fpr
   lab.order <- predLab$outcomeCount[order(-predLab$val)]
@@ -100,7 +116,8 @@ sparseMetric <- function(prediction,plpData,predLab, aveP=T){
                  roc = roc.sparse[,c('FPR','TPR')],
                  raw = roc.sparse[,c('TP','FP','TN','FN','FOR','accuracy')],
                  precision.recall = roc.sparse[,c('TPR','PPV')],
-                 F.measure = roc.sparse[,c('Fmeasure')]
+                 F.measure = roc.sparse[,c('Fmeasure')],
+                 calPlot =calPlot
   )
   class(result) <- 'metric.sparse'
   return(result)
