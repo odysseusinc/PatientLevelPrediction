@@ -71,15 +71,16 @@ evaluatePlp <- function(plpPredict, plpData, sparse=T ){
 }
 
 sparseMetric <- function(prediction,plpData,predLab, aveP=T){
+  writeLines(paste0('na: ', sum(is.na(prediction$value))))
   auc <- computeAuc(prediction,
                     plpData,
-                    removeDropoutsForLr = F,
+                    removeDropoutsForLr = T,
                     confidenceInterval = T)
   
   calPlot <- plotCalibration(prediction,
                              plpData,
-                             removeDropoutsForLr = F,
-                             numberOfStrata = 10,
+                             removeDropoutsForLr = T,
+                             numberOfStrata = 5,
                              truncateFraction = 0.01,
                              fileName = NULL)
   

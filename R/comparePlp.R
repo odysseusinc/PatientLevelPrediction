@@ -15,36 +15,42 @@ comparePlp <- function(models){
   
   performExtract <- function(x){
     featureSel <- rep('NA',3)
-    if('wrapper'%in%names(x$model$modelSettings$featureSettings)){
-      featureSel <- c('wrapper',
-                      x$model$modelSettings$featureSettings$wrapper$method,
-                      paste0('Variance:',x$model$modelSettings$featureSettings$wrapper$variance))
+    if(!is.null(x$model$metaData$featureSetting) &!'method'%in%names(x$model$metaData$featureSetting)){
+      for(i in 1:min(3,length(x$model$metaData$featureSetting)) ){
+          featureSel[i] <- x$model$metaData$featureSetting[[i]]$method
+      }
     }
+    if(!is.null(x$model$metaData$featureSetting) & 'method'%in%names(x$model$metaData$featureSetting)){
+      featureSel[1] <- x$model$metaData$featureSetting$method
+    }
+
+    
     res <-  c(x$model$modelSettings$model, 
-              paste0(names(x$model$modelSettings$modelParameters), x$model$modelSettings$modelParameters,
-                     collapse=',', sep=':'),
+              paste(names(x$model$modelSettings$modelParameters), x$model$modelSettings$modelParameters,
+                     collapse=',', sep='-'),
               featureSel,
               
-              ifelse(!is.null(x$model$modelLoc), x$model$modelLoc,''),
-              
+              #ifelse(!is.null(x$model$modelLoc), x$model$modelLoc,''),
+              format(x$time, digits=3),
               x$dataSummary$trainCohort,
               x$dataSummary$trainOutcomeCount,
               x$dataSummary$testCohort,
               x$dataSummary$testOutcomeCount,
               
-              ifelse(!is.null(x$model$trainAuc),x$model$trainAuc,0),
+              ifelse(!is.null(x$model$trainAuc),format(x$model$trainAuc, digits=3),0),
               
               x$evalType,
-              as.double(x$performance$auc), # with lb/up
-              x$performance$aveP,
-              getTPR(x$performance$roc, FPR=0.05), # could get TPR @ 5%/10%  FPR
-              getTPR(x$performance$roc, FPR=0.1)
+              format(as.double(x$performance$auc), digits=3), # with lb/up
+              format(x$performance$aveP, digits=3),
+              format(getTPR(x$performance$roc, FPR=0.05), digits=3), # could get TPR @ 5%/10%  FPR
+              format(getTPR(x$performance$roc, FPR=0.1), digits=3)
     )
     
     names(res) <- c('model','Parameters',
-                    'featureSection', 'Classifier', 'parameters',
-                    'modelLocation', 
-                    'trainingCount', 'trainingOutcome', 'testCount', 'testOutcome',
+                    'featureSel1', 'featureSel2', 'featureSel3',
+                    #'modelLocation', 
+                    'time',
+                    'train N', 'train Outcome', 'test N', 'test Outcome',
                     'cvAUC',
                     'Evaluation', 'testAUC', 'lower', 'upper', 'AP', 
                     'TPR@5FPR', 'TPR@10FPR'
@@ -95,8 +101,8 @@ comparePlp <- function(models){
     ggplot2::theme(legend.position="none")
   
   # Create a table plot
-  tbl1 <- gridExtra::tableGrob(result[,c(1:6,8:11)])
-  tbl2 <- gridExtra::tableGrob(result[,c(1,12:19)])
+  tbl1 <- gridExtra::tableGrob(result[,c(1:7)])
+  tbl2 <- gridExtra::tableGrob(result[,c(1,8:19)])
   # Plot chart and table into one object
   gridExtra::grid.arrange(gridExtra::arrangeGrob(plot1, plot3, ncol=2), 
                           tbl1,tbl2,
