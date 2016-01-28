@@ -299,16 +299,16 @@ predictPlp2 <- function(plpModel, plpData){
 #' @description
 #' Various train/test splitting techniques
 #' @details
-#' The function applied the trained model on the plpData to make predictions
+#' The function splits the plpData into test/train sets
 #' @param plpData                          An object of type \code{plpData} - the patient level prediction
 #'                                         data extracted from the CDM.
 #' @param type                             The type of train/test split:
 #'                                         \describe{
-#'                                         \item{'time'}{Split the data based on cohort start date -
+#'                                         \item{'year'}{Split the data based on cohort start date -
 #'                                         test:pre 2013/train:post2013 }
 #'                                         \item{'both'}{Split the data on year 2013 but exclude any train
 #'                                         people who are in the test set.}
-#'                                         \item{'both'}{Split the data into (1-frac) train set and frac test set.
+#'                                         \item{'patient'}{Split the data into (1-frac) train set and frac test set.
 #'                                         This is stratified by the outcome}
 #'                                         }
 #' @param frac                              The fraction of people who will go into the test set
@@ -325,29 +325,47 @@ spliter <- function(plpData, type, frac){
     split <- list()
     length(split) <- 2
     
-    cohortDates <- as.ram(plpData$cohorts$cohortStartDate)
-    ind <- floor(length(cohortDates)*frac)
+    cohorts <- ff::clone(plpData$cohorts)
+    cohortDates <- as.Date(ff::as.ram(cohorts$cohortStartDate), format = "%Y-%m-%d")
+    cohortDates <- cohortDates[order(cohortDates)]
+    ind <- floor(length(cohortDates)*(1-frac))
     split.d1 <- cohortDates[ind]
-    split.d2 <- cohortDates[ind]+1
     
-    split[[1]]<- censorPlpData(plpData, predictionPeriod =NULL,  dateInterval=c(min(cohortDates),split.d1),
-                               minPriorObservation= NULL #washoutWindow
-                               , excludeOutcomeOccurrence=NULL,
-                               classificationCensor=list(insufficientCohortObservation = c('include','include'),
-                                                         insufficientPredictionPeriod = c('include','include'),
-                                                         minPostObservation=NULL,
-                                                         insufficientPostObservation = c('include','include'),
-                                                         survivalCensor=list()
-                               ))
-    split[[2]]<- censorPlpData(plpData, predictionPeriod =NULL,  dateInterval=c(split.d2,max(cohortDates)),
-                               minPriorObservation= NULL #washoutWindow
-                               , excludeOutcomeOccurrence=NULL,
-                               classificationCensor=list(insufficientCohortObservation = c('include','include'),
-                                                         insufficientPredictionPeriod = c('include','include'),
-                                                         minPostObservation=NULL,
-                                                         insufficientPostObservation = c('include','include'),
-                                                         survivalCensor=list()
-                               ))
+    writeLines(paste0('Splitting on date: ', split.d1))
+    t <- as.Date(ff::as.ram(cohorts$cohortStartDate), format = "%Y-%m-%d") <= split.d1     
+    t <- ff::as.ff(t)
+    train.cohorts <- cohorts[ffbase::ffwhich(t, t==T),]
+    t <- as.Date(ff::as.ram(cohorts$cohortStartDate), format = "%Y-%m-%d") > split.d1     
+    t <- ff::as.ff(t)
+    test.cohorts <- cohorts[ffbase::ffwhich(t, t==T),]
+    writeLines(paste0('Train size: ', nrow(train.cohorts), ' -- Test size:',nrow(test.cohorts)))
+    
+    covariates <- ff::clone(plpData$covariates)
+    t <- ffbase::ffmatch(covariates$rowId, table=ff::as.ff(unique(test.cohorts$rowId)))
+    covariates.test <- covariates[ffbase::ffwhich(t, !is.na(t)),]
+    t <- ffbase::ffmatch(covariates$rowId, table=ff::as.ff(unique(train.cohorts$rowId)))
+    covariates.train <- covariates[ffbase::ffwhich(t, !is.na(t)),]
+    
+    outcomes <- ff::clone(plpData$outcomes )
+    t <- ffbase::ffmatch(outcomes$rowId, table=ff::as.ff(unique(test.cohorts$rowId)))
+    outcomes.test <- outcomes[ffbase::ffwhich(t, !is.na(t)),]
+    t <- ffbase::ffmatch(outcomes$rowId, table=ff::as.ff(unique(train.cohorts$rowId)))
+    outcomes.train <- outcomes[ffbase::ffwhich(t, !is.na(t)),]
+    
+    writeLines(paste0(ncol(outcomes.test), '-', ncol(covariates.test)))
+    writeLines(paste0(ncol(outcomes.train), '-', ncol(covariates.train)))
+    
+    split[[1]] <- list(cohorts=train.cohorts,
+                       covariates=covariates.train,
+                       outcomes=outcomes.train,
+                       covariateRef = ff::clone(plpData$covariateRef),
+                       metaData = plpData$metaData)
+    split[[2]] <- list(cohorts=test.cohorts,
+                       covariates=covariates.test,
+                       outcomes=outcomes.test,
+                       covariateRef = ff::clone(plpData$covariateRef),
+                       metaData = plpData$metaData)
+    
     return(split)
     
   }
@@ -358,7 +376,8 @@ spliter <- function(plpData, type, frac){
     length(split) <- 2
     
     cohortDates <- as.ram(plpData$cohorts$cohortStartDate)
-    ind <- floor(length(cohortDates)*frac)
+    cohortDates <- cohortDates[order(cohortDates)]
+    ind <- floor(length(cohortDates)*(1-frac))
     split.d1 <- cohortDates[ind]
     split.d2 <- cohortDates[ind]+1
     

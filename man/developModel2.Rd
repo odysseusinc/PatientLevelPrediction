@@ -4,12 +4,9 @@
 \alias{developModel2}
 \title{developModel - Train and elavuate the model}
 \usage{
-developModel2(plpData, modelSettings = list(model = "lr-lasso", param = NULL,
-  cohortId = NULL, outcomeId = 2), featureSettings = list(analysisSelector =
-  NULL, covariateSelector = NULL, wrapper = list(method = "lr-lasso", variance =
-  0.01), matrixFactor = F), validationFraction = 0.2,
-  fileLoc = file.path(getwd(), "models"), type = c("year", "both",
-  "patient"))
+developModel2(plpData, modelSettings, featureSettings,
+  validationFraction = 0.2, fileLoc = file.path(getwd(), "models"),
+  type = c("year", "both", "patient"))
 }
 \arguments{
 \item{plpData}{An object of type \code{plpData} - the patient level prediction
