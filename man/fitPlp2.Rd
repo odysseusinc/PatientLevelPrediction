@@ -10,43 +10,52 @@ fitPlp2(data, modelSettings, featureSettings, outcomeId, cohortId, loc)
 \item{data}{An object of type \code{plpData} - the patient level prediction
 data extracted from the CDM.}
 
-\item{featureSettings}{A list containing any parameters for the feature selection/engineering.
-\description{
-\item{...}{The initial variance setting for the lasso logistic regression}
+\item{modelSettings}{A list of class \code{modelSettings} containing:
+\itemize{
+\item{model -}{ a string specifying the name of classifier function (e.g. 'lr-lasso')}
+\item{param -}{ a list containing the model parameters, cohortIds, the outcomeIds.}
+}
+The default models are:
+\itemize{
+\item{lr-lasso -}{ Logistic regression with lasso regularisation - parameters: variance}
+\item{nnet_plp -}{ Neural network from caret package- parameters: size/decay}
+\item{svmRadial_plp -}{ SVM with radial kernal from caret package - parameters: C, ...}
+\item{randomForest_plp -}{ Random forest from h2o package}
+\item{gbm_plp -}{ Gradient boosting machine from h2o package}
+\item{lr_enet_plp -}{ Logistic regression with elastic new regularisation from h2o package}
 }}
+
+\item{featureSettings}{A list of class \code{featureSettings} containing:
+                                        \itemize{
+                                        \item{method -}{ a string specifying the name of feature modifying function (e.g. 'wrapperGA')}
+                                        \item{param -}{ a list containing the method parameters, cohortIds, the outcomeIds.}
+                                        }
+
+                                        The default preprocessing methods are:
+                                        \itemize{
+                                        \item{lassolr -}{ Feature selection using lasso logistic regression}
+                                        \item{wrapperGA -}{ Genetic algorithm wrapper}
+                                        \item{glrm -}{ (IN PROGRESS)Generaised low rank models}
+                                        \item{varImp -}{ Variable importance}
+                                        \item{filterCovariates -}{ Filtering covariates}
+                                         }}
 
 \item{outcomeId}{The outcomeId the user is aiming to predict}
 
 \item{cohortId}{The id of the cohort being used.  Default is NULL.}
 
 \item{loc}{The path to the directory where the model will be saved}
-
-\item{model}{A character string specifiying the machine learning model to train.
-
-                                        The potential models are:
-                                        \description{
-                                        \item{'lr-lasso'}{Logistic regression with lasso regularisation}
-                                        \item{'rf'}{Random forest}
-                                        \item{'gbm'}{Gradient boosting machines}
-                                        \item{'lr-enet'}{Logistic regression with elastic new regularisation}
-                                        }}
-
-\item{param}{The parameter setting depend on the model-
-model='lr-lasso' has the parameter val specificying the initial variance
-model='rf' has the parameters ntree, max_depth and mtry
-model='gbm' has the parameters ntree, bal (class balance), nrowSample (fraction of training data people to use per tree),
-       ncolSample (fraction of training data features to include into each tree)
-model='lr-enet' has the parameters alpha, ...}
 }
 \value{
-An object of class plpModel
-\describe{
+An object of class \code{plpModel} containing:
+
 \item{model}{The trained prediction model}
-\item{modelLoc}{The path to where the model is saved}
+\item{modelLoc}{The path to where the model is saved (if saved)}
 \item{trainAuc}{The AUC obtained on the training set}
 \item{trainCalibration}{The calibration obtained on the training set}
 \item{modelSettings}{A list specifiying the model, preprocessing, outcomeId and cohortId}
-\item{features}{The features used by the model}}
+\item{metaData}{The model meta data}
+\item{trainingTime}{The time taken to train the classifier}
 }
 \description{
 Train various models using a default parameter gird search or user specified parameters

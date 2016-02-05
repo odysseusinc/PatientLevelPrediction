@@ -58,34 +58,69 @@
 #'                                         180 days prior to index up to 40 days after index and filter these people from the data, it would
 #'                                         also find the people who have outcomeId 4 anytime prior to index and filter these people from the data.
 #' @param classificationCensor             A list detailing the exclusion criteria for classification.  The list contains:
-#'                                         \describe{
-#'                                         \item{insufficientCohortObservation}{a character vector of length 2 with each element either 'include' 
+#'                                         \itemize{
+#'                                         \item{insufficientCohortObservation - }{a character vector of length 2 with each element either 'include' 
 #'                                         or 'exclude' - indicating whether to include or exclude patients whose observation period ends 
 #'                                         before their cohort end.  The first element is applied to people with the outcome (class 1) and the second element is
 #'                                         applied to people without the outcome (class 0)}
-#'                                         \item{insufficientPredictionPeriod}{a character vector of length 2 with each element either 'include' 
+#'                                         \item{insufficientPredictionPeriod - }{a character vector of length 2 with each element either 'include' 
 #'                                         or 'exclude' - indicating whether to include or exclude patients whose predictionPeriod falls outside of 
 #'                                         their observation period.  The first element is applied to people with the outcome (class 1) and the second element is
 #'                                         applied to people without the outcome (class 0)}
-#'                                         \item{minPostObservation}{An integer - specifying the required minimum number of days after index (Used by insufficientPostObservation) }
-#'                                         \item{insufficientPostObservation}{a character vector of length 2 with each element either 'include' 
+#'                                         \item{minPostObservation - }{An integer - specifying the required minimum number of days after index (Used by insufficientPostObservation) }
+#'                                         \item{insufficientPostObservation - }{a character vector of length 2 with each element either 'include' 
 #'                                         or 'exclude' - indicating whether to include or exclude patients with an index date plus minPostObservation greater than
 #'                                         their observationEndDate.  The first element is applied to people with the outcome (class 1) and the second element is
 #'                                         applied to people without the outcome (class 0)}
 #'                                         
 #'                                         }
 #' @param  survivalCensor                 A list containing the criteria for censoring the data...                       
-                                                      
-#'
+#' @examples 
+#' # Filter any patients with an index before 2008-01-01 or after 2011-01-01
+#' # and who have less than 365 days observation prior to index
+#' plpData.censor censorPlpData(plpData, minPriorObservation = 365, 
+#' dateInterval = c('2008-01-01','2011-01-01'))
+#' 
+#' # Filter patients with less than 100 days observtion prior to index
+#' # also filter all people who are not observed for
+#' # at least 100 days post index 
+#' plpData.censor censorPlpData(plpData, minPriorObservation= 100, 
+#' minCohortTime=NULL, 
+#' classificationCensor=list( minPostObservation=100,
+#'                          insufficientPostObservation = c('exclude','exclude')
+#'                          )
+#'                          )
+#'                          
+#' # Filter patients with less than 100 days observtion prior to index
+#' # also filter people who do not have the outcome who are not observed for
+#' # at least 100 days post index 
+#' plpData.censor censorPlpData(plpData, minPriorObservation= 100, 
+#' minCohortTime=NULL, 
+#' classificationCensor=list(minPostObservation=100,
+#'                          insufficientPostObservation = c('include','exclude')
+#'                          )
+#'                          )
+#' # Filter people with an outcomeId 2 that occurs within 180 days before index
+#' # until 5 days after index, also filter people with less than 365 days 
+#' # observation prior to index and without a minimum of 365 days after index                         
+#' plpData.censor censorPlpData(plpData, minPriorObservation= 365, 
+#' excludeOutcomeOccurrence=list('2'=c(180,5)),
+#' classificationCensor=list(minPostObservation=365,
+#'                          insufficientPostObservation = c('exclude','exclude')
+#'                          )
+#'                          )                         
+#' 
 #' @return
 #' An object of type \code{plpData} containing information on the prediction problem that only contains the
 #' data satisfying the user's specified censoring options. This object will
 #' contain the following data:
-#' \describe{ \item{cohorts}{An ffdf object listing all persons and their prediction periods. This
+#' \item{cohorts}{An ffdf object listing all persons and their prediction periods. This
 #' object will have these fields: row_id (a unique ID per period), person_id, cohort_start_date,
-#' cohort_id, time (number of days in the window).} \item{outcomes}{An ffdf object listing all
+#' cohort_id, time (number of days in the window).} 
+#' \item{outcomes}{An ffdf object listing all
 #' outcomes per period. This object will have these fields: row_id, outcome_id, outcome_count,
-#' time_to_event.} \item{exclude}{Either NULL or an ffdf object listing per outcome ID which windows
+#' time_to_event.} 
+#' \item{exclude}{Either NULL or an ffdf object listing per outcome ID which windows
 #' had the outcome prior to the window. This object will have these fields: rowId, outcomeId.}
 #' \item{covariates}{An ffdf object listing the baseline covariates per person in the cohorts. This is
 #' done using a sparse representation: covariates with a value of 0 are omitted to save space. The
@@ -93,7 +128,7 @@
 #' \item{covariateRef}{An ffdf object describing the covariates that have been extracted.}
 #' \item{metaData}{A list of objects with information on how the plpData object was constructed
 #' and censoring details.  The list member named 'excluded' contains a ffdf of the excluded 
-#' people and reason for exclusion.} }
+#' people and reason for exclusion.} 
 #'
 #' @export
 

@@ -2,70 +2,105 @@
 % Please edit documentation in R/developModelFramework.R
 \name{developModel2}
 \alias{developModel2}
-\title{developModel - Train and elavuate the model}
+\title{developModel - Train and evaluate the model}
 \usage{
-developModel2(plpData, modelSettings, featureSettings,
-  validationFraction = 0.2, fileLoc = file.path(getwd(), "models"),
-  type = c("year", "both", "patient"))
+developModel2(plpData, modelSettings, featureSettings, type = c("year",
+  "both", "patient"), validationFraction = 0.2, fileLoc = file.path(getwd(),
+  "models"))
 }
 \arguments{
 \item{plpData}{An object of type \code{plpData} - the patient level prediction
 data extracted from the CDM.}
 
-\item{modelSettings}{A list defining the model to train, the cohortId, the outcomeId,
-                                        preprocessing options and model parameters.
+\item{modelSettings}{A list of class \code{modelSettings} containing:
+\itemize{
+\item{model -}{ a string specifying the name of classifier function (e.g. 'lr-lasso')}
+\item{param -}{ a list containing the model parameters, cohortIds, the outcomeIds.}
+}
+The default models are:
+\itemize{
+\item{lr-lasso -}{ Logistic regression with lasso regularisation - parameters: variance}
+\item{nnet_plp -}{ Neural network from caret package- parameters: size/decay}
+\item{svmRadial_plp -}{ SVM with radial kernal from caret package - parameters: C, ...}
+\item{randomForest_plp -}{ Random forest from h2o package}
+\item{gbm_plp -}{ Gradient boosting machine from h2o package}
+\item{lr_enet_plp -}{ Logistic regression with elastic new regularisation from h2o package}
+}}
 
-                                        The potential models are:
-                                        Logistic regression with lasso regularisation: 'lr-lasso'
-                                        Random forest: 'rf'
-                                        Gradient boosting machineL 'gbm'
-                                        Logistic regression with elastic new regularisation: 'lr-enet'
+\item{featureSettings}{A list of class \code{featureSettings} containing:
+                                        \itemize{
+                                        \item{method -}{ a string specifying the name of feature modifying function (e.g. 'wrapperGA')}
+                                        \item{param -}{ a list containing the method parameters, cohortIds, the outcomeIds.}
+                                        }
 
-                                        The potential preprocessing settings are:
-                                        Wrapper feature selection using lasso logistic regression: 'lr-lasso'
-                                        Selecting only the condition/drug era features: 'allEra'
+                                        The default preprocessing methods are:
+                                        \itemize{
+                                        \item{lassolr -}{ Feature selection using lasso logistic regression}
+                                        \item{wrapperGA -}{ Genetic algorithm wrapper}
+                                        \item{glrm -}{ (IN PROGRESS)Generaised low rank models}
+                                        \item{varImp -}{ Variable importance}
+                                        \item{filterCovariates -}{ Filtering covariates}
+                                         }}
 
-                                        The parameter setting depend on the model-
-                                        model='lr-lasso' has the parameter val specificying the initial variance
-                                        model='rf' has the parameters ntree, max_depth and mtry
-                                        model='gbm' has the parameters ntree, bal (class balance), nrowSample (fraction of training data people to use per tree),
-                                               ncolSample (fraction of training data features to include into each tree)
-                                        model='lr-enet' has the parameters alpha, ...
-
-                                        example: list(model='gbm', cohortId=NULL, outcomeId=c(1,2),
-                                                      preprocess='lr-lasso', param=list(ntree=50, bal=F, nrowsample=0.6))
-                                        Would train a gradient boosting machine to predict the outcomes 1 and 2
-                                        using the features selected by logistic regression with lasso regularisation
-                                        with the model settings ntree 50, no class label balance and 0.6 training data rows
-                                        used per tree.}
+\item{type}{A subset of c('year','both','patient') specifying the type of evaluation used.
+'year' find the date where validationFraction of patients had an index after the date and assigns patients with an index prior to this date into the training set and post the date into the test set
+'both' splits the data by the year but removes any patient in the test set from the training set
+'patient' splits the data into test (1-validationFraction of the data) and
+train (validationFraction of the data) sets.  The split is stratified by the class label.}
 
 \item{validationFraction}{The fraction of the data to be used as the validation set in the patient
 split evaluation.}
 
 \item{fileLoc}{The path to the directory where the models will be saved}
-
-\item{type}{A subset of c('year','both','patient') specifying the type of evaluation used.
-'year' splits the date prior to 2013 into the training set and post 2013 into the test set
-'both' splits the data by the year 2013 but removes any patient in the test set from the training set
-'patient' splits the data into test (1-validationFraction of the data) and
-train (validationFraction of the data) sets.  The split is stratified by the class label.}
 }
 \value{
 An object containing the model or location where the model is save, the data selection settings, the preprocessing
 and training settings as well as various performance measures obtained by the model.
-\describe{
-\item{model}{The trained prediction model}
+
+\item{model}{A list of class \code{plpModel} containing the model, training metrics and model metadata}
 \item{dataSummary}{A list detailing the size of the train/test sets and outcome prevalence}
 \item{evalType}{The type of evaluation that was performed}
-\item{prediction}{The model prediction on the test set }
-\item{performance}{A list detailing the performance of the model}}
+\item{prediction}{An ffdf object containing the prediction for each person in the validation set }
+\item{performance}{A list detailing the performance of the model}
+\item{time}{The complete time taken to do the model framework}
 }
 \description{
-Trains various machine learning models and elavulates them
+This provides a general framework for training patient level prediction models.  The user can select 
+various default feature selection methods or incorporate their own,  The user can also select from
+a range of default classifiers or incorporate their own.  There are three types of evaluations for the model
+patient (randomly splits people into train/validation sets) or year (randomly splits data into train/validation sets
+based on index year - older in training, newer in validation) or both (same as year spliting but checks there are
+no overlaps in patients within training set and validaiton set - any overlaps are removed from validation set)
 }
 \details{
 Users can define a risk period of interest for the prediction of the outcome relative to index or use
 the cohprt dates.  The user can then specify whether they wish to exclude patients who are not observed
 during the whole risk period, cohort period or experienced the outcome prior to the risk period.
+}
+\examples{
+#******** EXAMPLE 1 ********* 
+#lasso logistic regression oredicting outcome 2 in cohorts 1 and 3 
+#using no feature selection with a year split evaluation:
+modset_llr  <- list(model='lr_lasso',
+                   param=list(variance =0.001, cohortId=c(1,2), outcomeId=2))
+class(modset_llr) <- 'modelSettings'
+mod_llr <- developModel2(plpData= plpData,
+                        featureSettings = NULL,
+                        modelSettings = modset_llr ,
+                        type='year')
+ 
+#******** EXAMPLE 2 *********                                               
+# Gradient boosting machine using a genetic algorimth wrapper to 
+# select the feature subset and a grid search to select hyper parameters                         
+featSet_gbm <- list(method='wrapperGA', param=list(cohortId=c(1,2), outcomeId=2, varSize=300, iter=25))
+class(featSet_gbm) <- 'featureSettings'
+modset_gbm <- list(model='gbm_plp',
+                   param=list(rsampRate=0.8, ntrees=c(100,150), max_depth=c(2,4,5), cohortId=c(1,2), outcomeId=2))
+class(modset_gbm) <- 'modelSettings'
+mod_gbm <- developModel2(plpData= plpData.censor,
+                         featureSettings = featSet_gbm,
+                         modelSettings = modset_gbm,
+                         type='year')
+
 }
 

@@ -11,12 +11,12 @@ spliter(plpData, type, frac)
 data extracted from the CDM.}
 
 \item{type}{The type of train/test split:
-\describe{
-\item{'time'}{Split the data based on cohort start date -
+\itemize{
+\item{'year'}{Split the data based on cohort start date -
 test:pre 2013/train:post2013 }
 \item{'both'}{Split the data on year 2013 but exclude any train
 people who are in the test set.}
-\item{'both'}{Split the data into (1-frac) train set and frac test set.
+\item{'patient'}{Split the data into (1-frac) train set and frac test set.
 This is stratified by the outcome}
 }}
 
@@ -29,6 +29,6 @@ A list with the training set as the first element and the testing set as the sec
 Various train/test splitting techniques
 }
 \details{
-The function applied the trained model on the plpData to make predictions
+The function splits the plpData into test/train sets
 }
 

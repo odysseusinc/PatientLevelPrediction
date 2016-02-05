@@ -18,4 +18,33 @@ Compares the performance of two or more patient level prediction models
 \details{
 The function summarises and plots the performance of the input models for comparison
 }
+\examples{
+modset_llr  <- list(model='lr_lasso',
+                   param=list(variance =0.001, cohortId=c(1,2), outcomeId=2))
+class(modset_llr) <- 'modelSettings'
+model1 <- developModel2(plpData= plpData,
+                        featureSettings = NULL,
+                        modelSettings = modset_llr ,
+                        type='year')
+                        
+featSet_gbm <- list(method='wrapperGA', param=list(cohortId=c(1,2), outcomeId=2, varSize=300, iter=25))
+class(featSet_gbm) <- 'featureSettings'
+modset_gbm <- list(model='gbm_plp',
+                   param=list(rsampRate=0.8, ntrees=c(100,150), max_depth=c(2,4,5), cohortId=c(1,2), outcomeId=2))
+class(modset_gbm) <- 'modelSettings'
+model2 <- developModel2(plpData= plpData.censor,
+                         featureSettings = featSet_gbm,
+                         modelSettings = modset_gbm,
+                         type='year')
+                         
+model3 <- developModel2(plpData= plpData.censor,
+                         featureSettings = NULL,
+                         modelSettings = modset_gbm,
+                         type='year')  
+                         
+allModels <- list(model1[[1]], model2[[1]], model3[[1]])   
+
+comparePlp(allModels)                                                                    
+
+}
 

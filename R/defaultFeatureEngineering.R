@@ -189,8 +189,8 @@ glrm <- function(plpdata, clusterSize, ...){
 
 wrapperGA <- function(plpData, model='gbm', varSize=300, iter=100, ...){
   #take small sample and clone data
-  cohorts <-clone(plpData$cohorts)
-  outcomes <-clone(plpData$outcomes)
+  cohorts <-ff::clone(plpData$cohorts)
+  outcomes <-ff::clone(plpData$outcomes)
   ppl.gen <- unique(as.ram(cohorts$rowId))
   ppl.out <- unique(as.ram(outcomes$rowId))
   if(length(ppl.gen>1500)){
@@ -199,7 +199,7 @@ wrapperGA <- function(plpData, model='gbm', varSize=300, iter=100, ...){
       ppl.out <- sample(ppl.out, 1000)
   }
   
-  covariates <- clone(plpData$covariates)
+  covariates <- ff::clone(plpData$covariates)
   t <- ffbase::ffmatch(covariates$rowId, table=ff::as.ff(c(ppl.out, ppl.gen)))
   covariates.samp<- covariates[ffbase::ffwhich(t, !is.na(t)),]
   
@@ -246,7 +246,7 @@ wrapperGA <- function(plpData, model='gbm', varSize=300, iter=100, ...){
   # create the transformData function
   transformData <- function(plpData2){
     writeLines('transform function running...')
-    newcovs <- clone(plpData2$covariates)
+    newcovs <- ff::clone(plpData2$covariates)
     t <- ffbase::ffmatch(newcovs$covariateId, table=ff::as.ff(as.double(selFeat)))
     
     newcovs<- newcovs[ffbase::ffwhich(t, !is.na(t)),]
