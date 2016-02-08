@@ -1,6 +1,8 @@
 # default patient level prediction prediction  
 predict.plp <- function(plpModel, plpData){
   prediction <- predictProbabilities(plpModel$model, plpData)
+  attr(prediction, "outcomeId") <- plpModel$modelSettings$outcomeId
+  
   return(prediction)
 }
 
@@ -62,6 +64,8 @@ predict.caret <- function(plpModel, plpData){
   # check whether I need to add rowId name and column.
   prediction <- merge(ff::as.ram(plpData$cohorts), prediction, by='rowId', all.x=T)
   prediction$value[is.na(prediction$value)] <- 0
+  attr(prediction, "outcomeId") <- plpModel$modelSettings$outcomeId
+  
   return(prediction)
 }
 
@@ -95,6 +99,27 @@ predict.h2o <- function(plpModel, plpData){
   #writeLines(paste(colnames(ff::as.ram(plpData$cohorts)), sep='-',collapse='-'))
   
   prediction <- merge(ff::as.ram(plpData$cohorts), pred, by='rowId', all.x=T)
+  attr(prediction, "outcomeId") <- plpModel$modelSettings$outcomeId
+  
   #writeLines(paste(prediction[1,], sep='-',collapse='-'))
+  return(prediction)
+}
+
+
+
+predict.knn <- function(plpData, plpModel){
+  
+  prediction <- BigKnn::predictKnn(covariates = plpData$covariates,
+                                   indexFolder = plpModel$model,
+                                   k = plpModel$modelSettings$k,
+                                   weighted = TRUE)
+  
+  # return the cohorts as a data frame with the prediction added as 
+  # a new column with the column name 'value'
+  prediction <- merge(ff::as.ram(plpData$cohorts), prediction, by='rowId', 
+                      all.x=T, fill=0)
+  prediction <- prediction[!is.na(prediction$value),]
+  attr(prediction, "outcomeId") <- plpModel$modelSettings$outcomeId
+  
   return(prediction)
 }

@@ -185,9 +185,9 @@ plotCalibration <- function(prediction,
 
   prediction <- prepareDataForEval(prediction, plpData, removeDropoutsForLr)
 
-  q <- unique(quantile(prediction$value, (1:(numberOfStrata - 1))/numberOfStrata))
+  q <- unique(c(0,quantile(prediction$value, (1:(numberOfStrata - 1))/numberOfStrata)),max(prediction$value))
   prediction$strata <- cut(prediction$value,
-                           breaks = c(0, q, max(prediction$value)),
+                           breaks = q,
                            labels = FALSE)
   computeStratumStats <- function(data) {
     return(data.frame(minx = min(data$value),

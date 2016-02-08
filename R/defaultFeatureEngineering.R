@@ -296,3 +296,131 @@ wrapperGA <- function(plpData, model='gbm', varSize=300, iter=100, ...){
   
 }
 
+
+
+
+
+
+varImp <- function(plpData, sampSize, n, m){
+  
+  #clone data to prevent accidentally deleting plpData 
+  cohorts <-ff::clone(plpData$cohorts)
+  outcomes <-ff::clone(plpData$outcomes)
+  covariates <- ff::clone(plpData$covariates)
+  
+  # take a random straified sample if data > 50,000 people
+  ppl.all <- unique(as.ram(cohorts$rowId))
+  if(length(ppl.all)>50000){  
+    ppl.out <- unique(as.ram(outcomes$rowId))
+    ppl.notout <- ppl.all[!ppl.all%in%ppl.out]
+    ppl.out<- sample(ppl.out, 50000/length(ppl.all)*length(ppl.out))
+    ppl.notout <- sample(ppl.notout, 50000/length(ppl.all)*length(ppl.notout))
+    ppl.all <- c(ppl.out, ppl.notout)
+  }			  
+  t <- ffbase::ffmatch(covariates$rowId, table=ff::as.ff(ppl.all))
+  covariates.samp<- covariates[ffbase::ffwhich(t, !is.na(t)),]
+  
+  
+  # Create the non-sparse feature matrix
+  covMat <- reshape2::dcast(ff::as.ram(covariates.samp), rowId~covariateId, 
+                            value.var='covariateValue', fill=0)
+  # add label									
+  covMat <- merge(covMat, as.ram(outcomes[,c('rowId','outcomeCount')]), 
+                  by='rowId', all.x=T)
+  labs <- rep(1, nrow(covMat))
+  labs[is.na(covMat$outcomeCount)] <- 0
+  covMat$outcomeCount <- labs
+  
+  #load into h2o
+  covMat <- h2o::as.h2o(covMat[,-1]) # remove rowId
+  covMat$outcomeCount <- h2o::as.factor(covMat$outcomeCount)
+  
+  
+  # randomly sample sampSize features and train a gbm n times 
+  varImpModel <- function(...){
+    mod <- h2o::h2o.gbm(x=sample(ncol(covMat)-1, sampSize), 
+                        y=ncol(covMat), 
+                        training_frame=covMat, 
+                        max_depth=4, 
+                        ntrees=50, nfolds=5)
+    return(mod@model$variable_importances)
+  }
+  # get a list of n variable importance data frames
+  imps <- lapply(1:n, varImpModel)
+  
+  # now merge the n var importance data frames	
+  varImp <- imps[[1]]
+  for(i in 2:n){
+    additionImp <- imps[[i]][,c('variable','scaled_importance')]
+    colnames(additionImp)[2] <- paste0('imp',i)
+    varImp <- merge(varImp, additionImp, by='variable', all=T, fill=NA)
+    
+  }
+  
+  # now calculate the average importance 
+  # (sum of var imp/number of times included)
+  varScore <- apply(varImp[,-1], 1, mean)
+  varImp <- varImp[order(-varScore),]
+  
+  # find the top m features on average varImp
+  selFeat <- varImp$variable[1:m]
+  
+  # now extract the covariates that are in selFeat
+  t <- ffbase::ffmatch(covariates$covariateId, 
+                       table=ff::as.ff(as.double(selFeat)))
+  covariates <- covariates[ffbase::ffwhich(t,!is.na(t)),]
+  
+  # create the transformData function
+  transformData <- function(plpData2){
+    writeLines('transform function running...')
+    newcovs <- ff::clone(plpData2$covariates)
+    t <- ffbase::ffmatch(newcovs$covariateId, 
+                         table=ff::as.ff(as.double(selFeat)))
+    
+    newcovs<- newcovs[ffbase::ffwhich(t, !is.na(t)),]
+    
+    metaData <- plpData2$metaData
+    if(!is.null(metaData$featureInclude) )
+      metaData$featureInclude <- c(metaData$featureInclude,as.double(selFeat))
+    if(is.null(metaData$featureInclude) )
+      metaData$featureInclude <- as.double(selFeat)
+    
+    
+    newData <- list(covariates = newcovs,
+                    cohorts = ff::clone(plpData2$cohorts),
+                    outcomes = ff::clone(plpData2$outcomes),
+                    covariateRef = ff::clone(plpData2$covariateRef),
+                    metaData = metaData
+    )
+    return(newData) 
+  }
+  
+  
+  # update metaData
+  # add the covariatesIncluded metadata list of featureSelect 
+  metaDataUpdate <- plpData$metaData
+  if(!is.null(metaDataUpdate$featureInclude))
+    metaDataUpdate$featureInclude <- c(metaDataUpdate$featureInclude,as.double(selFeat))
+  if(is.null(metaDataUpdate$featureInclude))
+    metaDataUpdate$featureInclude <- as.double(selFeat)
+  
+  featureSet <- list(method='varImp',
+                     sampSize = sampSize,
+                     n = n,
+                     m = m,
+                     transform=transformData)
+  if(!is.null(metaDataUpdate$featureSettings))
+    metaDataUpdate$featureSettings <- list(metaDataUpdate$featureSettings, featureSet )
+  if(is.null(metaDataUpdate$featureSettings))
+    metaDataUpdate$featureSettings <- featureSet 
+  
+  result <- list(covariates = covariates,
+                 cohorts = cohorts,
+                 outcomes = outcomes,
+                 covariateRef = ff::clone(plpData$covariateRef),
+                 metaData = metaDataUpdate
+  )
+  return(result)
+  
+  
+}

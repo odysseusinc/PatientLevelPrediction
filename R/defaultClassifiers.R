@@ -365,3 +365,72 @@ cov_to_mat <- function(plpData, quiet=T){
   
  return(allData)
 }
+
+
+
+
+
+
+knn_plp <- function(plpData, param, quiet=T){
+  start <- Sys.time()
+  k <- param$k
+  if(is.null(k))
+    k <- 10
+  cohortId <- param$cohortId
+  outcomeId <- param$outcomeId
+  indexFolder <- param$indexFolder
+  
+  #clone data to prevent accidentally deleting plpData 
+  cohorts <-ff::clone(plpData$cohorts)
+  outcomes <-ff::clone(plpData$outcomes)
+  covariates <- ff::clone(plpData$covariates)
+  
+  # filter the outcome and cohort ids:
+  if(!is.null(cohortId)){
+    t <- ffbase::ffmatch(cohorts$cohortId, table=ff::as.ff(cohortId))
+    ppl<- cohorts$rowId[ffbase::ffwhich(t, !is.na(t))]
+    
+    t <- ffbase::ffmatch(covariates$rowId, table=ppl)
+    covariates <- covariates[ffbase::ffwhich(t, !is.na(t)),]
+  }
+  if(!is.null(outcomeId)){
+    t <- ffbase::ffmatch(outcomes$outcomeId, table=ff::as.ff(outcomeId))
+    outcomes<- outcomes[ffbase::ffwhich(t, !is.na(t)),]
+  }
+  
+  # format of knn
+  outcomes$y <- ff::as.ff(rep(1, length(unique(ff::as.ram(outcomes$rowId)))))
+  
+  # add 0 outcome:
+  ppl <- as.ram(cohorts$rowId)
+  new <- ppl[!ppl%in%unique(ff::as.ram(outcomes$rowId))]
+  newOut <- data.frame(rowId=new, outcomeId=-1,outcomeCount=1,timeToEvent=0,y=0)
+  outcomes <- as.ffdf(rbind(as.ram(outcomes),newOut))
+  
+  # create the model in indexFolder
+  BigKnn::buildKnn(outcomes = ff::as.ffdf(outcomes),
+                   covariates = ff::as.ffdf(covariates),
+                   indexFolder = indexFolder)
+  
+  comp <- Sys.time() - start
+  if(!quiet)
+    writeLines(paste0('Model knn trained - took:',  format(comp, digits=3)))
+  
+  result <- list(model = indexFolder,
+                 modelLoc = indexFolder,    # did I actually save this!?
+                 trainAuc = NULL,
+                 trainCalibration=NULL,
+                 modelSettings = list(model='knn',
+                                      k=k,
+                                      cohortId=cohortId, 
+                                      outcomeId=outcomeId, 
+                                      indexFolder=indexFolder),
+                 metaData = plpData$metaData,
+                 trainingTime=comp
+  )
+  class(result) <- 'plpModel'
+  attr(result, 'type') <- 'knn'
+  return(result)
+}
+
+

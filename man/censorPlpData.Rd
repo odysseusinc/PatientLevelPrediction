@@ -4,9 +4,10 @@
 \alias{censorPlpData}
 \title{Filters the plpData based on user specified criteria}
 \usage{
-censorPlpData(plpData, outcomeTime = NULL, newOutcome = NULL,
-  predictionPeriod = NULL, dateInterval = NULL, minPriorObservation = 365,
-  minCohortTime = NULL, excludeOutcomeOccurrence = list(`1` = c("inf", 0)),
+censorPlpData(plpData, outcomeIds = NULL, outcomeTime = NULL,
+  newOutcome = NULL, predictionPeriod = NULL, dateInterval = NULL,
+  minPriorObservation = 365, minCohortTime = NULL,
+  excludeOutcomeOccurrence = list(`1` = c("inf", 0)),
   classificationCensor = list(insufficientCohortObservation = c("include",
   "include"), insufficientPredictionPeriod = c("include", "include"),
   minPostObservation = NULL, insufficientPostObservation = c("include",
@@ -17,6 +18,8 @@ censorPlpData(plpData, outcomeTime = NULL, newOutcome = NULL,
 \arguments{
 \item{plpData}{An object of type \code{plpData} - the patient level prediction 
 data extracted from the CDM.}
+
+\item{outcomeIds}{a vector of integers (corresponding to outcome ids) or NULL}
 
 \item{outcomeTime}{An integer - if you need to edit the time from index where you want to predict the
 outcome use this parameter.  For example, if you created the outcome table 

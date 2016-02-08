@@ -37,7 +37,6 @@
 #' A table summarising the performance value comparision and plots.
 #' @export
 
-
 comparePlp <- function(models){
   
   # extract model details, training details, cv performance and validation performance
@@ -159,10 +158,3 @@ comparePlp <- function(models){
 getTPR <- function(roc, FPR=0.05){
   return(roc$TPR[which.min(abs(roc$FPR-FPR))])
 }
-
-#eval <- list(auc=roc$auc, aveP=aveP,
-#roc=roc,
-#raw = metrics[,c('TP','FP','TN','FN','FOR','accuracy')],
-#precision.recall = metrics[,c('TPR','PPV')],
-#F.measure = metrics[,c('Fmeasure')])
-#class(eval) <- 'metric.full'

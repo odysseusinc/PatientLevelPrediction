@@ -28,6 +28,7 @@
 #'
 #' @param plpData                          An object of type \code{plpData} - the patient level prediction 
 #'                                         data extracted from the CDM.
+#' @param outcomeIds                       a vector of integers (corresponding to outcome ids) or NULL 
 #' @param outcomeTime                      An integer - if you need to edit the time from index where you want to predict the
 #'                                         outcome use this parameter.  For example, if you created the outcome table 
 #'                                         by finding the occurrence of the outcome 30 days after cohort start but
@@ -133,7 +134,7 @@
 #' @export
 
 
-censorPlpData <- function(plpData, outcomeTime=NULL, newOutcome=NULL,
+censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome=NULL,
                           predictionPeriod =NULL,  dateInterval=NULL,
                           minPriorObservation= 365 #washoutWindow
                           , minCohortTime=NULL,
@@ -297,10 +298,16 @@ censorPlpData <- function(plpData, outcomeTime=NULL, newOutcome=NULL,
   
   # now filter the classification
   if(length(classificationCensor)>0){
+    if (!is.null(outcomeIds)){
+      t <- ffbase::ffmatch(outcomes$outcomeId, table=outcomeIds)
+      outcomes <- outcomes[ffbase::ffwhich(t, !is.na(t)),]
+    }
     
     outcomeIds <- unique(outcomes$rowId)
     t <- ffbase::ffmatch(cohorts$rowId, table=outcomeIds)
-    nonOutcomeIds <- unique(cohorts$rowId[ffbase::ffwhich(t, is.na(t))])
+    nonOutcomeIds <- c()
+    if(sum(is.na(t))>0)
+      nonOutcomeIds <- unique(cohorts$rowId[ffbase::ffwhich(t, is.na(t))])
     Ids <- list(outcomeIds,nonOutcomeIds)
     
     
