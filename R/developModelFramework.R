@@ -151,16 +151,13 @@ developModel2 <- function(plpData,
     model <- do.call(fitPlp2, settings[[i]])
     writeLines('1: Model Trained')
     
-    prediction <- NULL
-    performance <- NULL
-    if(model!='no cov'){
-      # do prediction
-      prediction <- predictPlp2(plpModel=model, plpData=data[[2]])
-      writeLines('2) Prediction Calculated')
-      # calculate metrics
-      performance <- evaluatePlp(prediction, data[[2]])
-      writeLines('3) Performance calculated')
-    }
+    # do prediction
+    prediction <- predictPlp2(plpModel=model, plpData=data[[2]])
+    writeLines('2) Prediction Calculated')
+    # calculate metrics
+    performance <- evaluatePlp(prediction, data[[2]])
+    writeLines('3) Performance calculated')
+    
     comp <- Sys.time() - start.all
     results[[i]] <- list(model=model,
                          dataSummary=dataSummary,
@@ -308,7 +305,7 @@ fitPlp2 <- function(data, modelSettings, featureSettings, outcomeId, cohortId, l
 #' @export
 predictPlp2 <- function(plpModel, plpData){
   # in the model part add an attribute type - plp, h2o, caret, ... then apply prediciton for that type or allow custom
-  
+  writeLines('started prediction')
   # apply the feature transformations
   if(class(plpModel$metaData$featureSettings)=='list' & !'transform'%in%names(plpModel$metaData$featureSettings)){
     for(x in plpModel$metaData$featureSettings){
@@ -318,12 +315,13 @@ predictPlp2 <- function(plpModel, plpData){
   if('transform'%in%names(plpModel$metaData$featureSettings) ){
     plpData <- do.call(plpModel$metaData$featureSettings$transform, list(plpData2=plpData))
   }
-    
+  
   # do the predction on the new data
   if(class(plpModel)=='plpModel'){
     # extract the classifier type
+    
     pred <- paste0('predict.',attr(plpModel, 'type'))
-  prediction <-  do.call(pred, list(plpModel=plpModel, plpData=plpData))
+    prediction <-  do.call(pred, list(plpModel=plpModel, plpData=plpData))
   }
   
 
@@ -394,9 +392,7 @@ spliter <- function(plpData, type, frac){
     t <- ffbase::ffmatch(outcomes$rowId, table=ff::as.ff(unique(train.cohorts$rowId)))
     outcomes.train <- outcomes[ffbase::ffwhich(t, !is.na(t)),]
     
-    writeLines(paste0(ncol(outcomes.test), '-', ncol(covariates.test)))
-    writeLines(paste0(ncol(outcomes.train), '-', ncol(covariates.train)))
-    
+   
     split[[1]] <- list(cohorts=train.cohorts,
                        covariates=covariates.train,
                        outcomes=outcomes.train,

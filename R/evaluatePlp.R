@@ -39,13 +39,14 @@ evaluatePlp <- function(plpPredict, plpData, sparse=T ){
     
     metrics <- data.frame(TP,FP,TN,FN, TPR, FPR,PPV,FOR, accuracy, Fmeasure)
     
-    aveP <- NULL
-    if(aveP==T){
+    #if(aveP==F)
+    #  aveP <- NULL
+    #if(aveP==T){
       P <- sum(predLab$outcomeCount>0)
       val <- rep(0, nrow(predLab))
       val[predLab$outcomeCount[order(-predLab$value)]>0] <- 1:P
       aveP <- sum(val/(1:nrow(predLab)))/P
-    }
+    #}
     
     
     calPlot <- plotCalibration(plpPredict,

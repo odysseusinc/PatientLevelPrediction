@@ -62,7 +62,7 @@ nnet_plp <- function(plpData, param, search='grid',quiet=F,... ){
   tuneGrid <- expand.grid(size=size, decay=decay)
   fitControl <- caret::trainControl(method = "repeatedcv", number = 3,repeats = 1,
                                     verboseIter = FALSE,classProbs = TRUE,
-                                    summaryFunction=twoClassSummary)
+                                    summaryFunction=caret::twoClassSummary)
   
   model1 <- caret::train(x=plpMat[,!colnames(plpMat)%in%c('outcomeCount','rowId')],
                          y=as.factor(labs),
@@ -122,7 +122,7 @@ svmRadial_plp <- function(plpData, param, search='grid', quiet=F,...){
   if(!is.null(plpMat)){
   fitControl <- caret::trainControl(method = "repeatedcv", number = 3,repeats = 1,
                                     verboseIter = FALSE,returnResamp = "all",classProbs = TRUE,
-                                    summaryFunction=twoClassSummary)
+                                    summaryFunction=caret::twoClassSummary)
   
   model1 <- caret::train(x=plpMat[,!colnames(plpMat)%in%c('outcomeCount','rowId')],
                          y=as.factor(labs),
