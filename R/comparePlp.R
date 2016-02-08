@@ -100,7 +100,7 @@ comparePlp <- function(models){
                                            nrow(models[[i]]$performance$precision.recall))))
   }
   
-  plot1 <- ggplot2::ggplot(data=plotData, aes(x=FPR, y=TPR, group=model, color=model)) +
+  plot1 <- ggplot2::ggplot(data=plotData, ggplot2::aes(x=FPR, y=TPR, group=model, color=model)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
     ggplot2::expand_limits(y=0) +
@@ -120,7 +120,7 @@ comparePlp <- function(models){
   }
   
   
-  plot3 <- ggplot2::ggplot(data=plotData, aes(x=TPR, y=PPV, group=model, color=model)) +
+  plot3 <- ggplot2::ggplot(data=plotData, ggplot2::aes(x=TPR, y=PPV, group=model, color=model)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
     ggplot2::expand_limits(y=0) +

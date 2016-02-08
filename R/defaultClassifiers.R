@@ -49,7 +49,7 @@ nnet_plp <- function(plpData, param, search='grid',quiet=F,... ){
   if(!is.null(param$size))
     decay <- param$decay
   
-  maxit<- 500
+  maxits<- 500
   maxwts <- 20000
   if(!is.null(param$maxwts))
     maxwts <- param$maxwts
@@ -164,7 +164,7 @@ randomForest_plp <- function(plpData, param, search='grid', quiet=F,...){
   if(!quiet)
     writeLines(paste0('Training random forest model...' ))
   start <- Sys.time()
-  
+  paramInput <- param
   plpMat <- cov_to_mat(plpData)
   #plpMat$outcomeCount <- as.double(as.character(plpMat$outcomeCount))
   h2oData <- h2o::as.h2o(plpMat)
@@ -208,7 +208,7 @@ randomForest_plp <- function(plpData, param, search='grid', quiet=F,...){
                                    modelTrained@model$cross_validation_metrics@metrics$AUC),
                  trainCalibration= NULL,
                  modelSettings = list(model='randomForest_plp',modelParameters=param.best,
-                                      outcomeId=param$outcomeId, cohortId=param$cohortId),
+                                      outcomeId=paramInput$outcomeId, cohortId=paramInput$cohortId),
                  metaData = plpData$metaData,
                  trainingTime =comp
   )
@@ -228,6 +228,7 @@ gbm_plp <- function(plpData, param, search='grid', quiet=F,...){
   if(!quiet)
     writeLines(paste0('Training gradient boosting machine model...' ))
   start <- Sys.time()
+  paramInput <- param
   
   h2oData <- h2o::as.h2o(cov_to_mat(plpData))
   h2oData$outcomeCount <- h2o::as.factor(1*(h2oData$outcomeCount>0))
@@ -264,7 +265,7 @@ gbm_plp <- function(plpData, param, search='grid', quiet=F,...){
                                    modelTrained@model$cross_validation_metrics@metrics$AUC),
                  trainCalibration= NULL,
                  modelSettings = list(model='gbm_plp',modelParameters=param.best,
-                                      outcomeId=param$outcomeId, cohortId=param$cohortId),
+                                      outcomeId=paramInput$outcomeId, cohortId=paramInput$cohortId),
                  metaData = plpData$metaData,
                  trainingTime =comp
   )
@@ -333,44 +334,6 @@ lr_enet_plp <- function(plpData, param, search='grid', quiet=F,...){
 }
 
 
-
-
-####### HELPER FUNCTIONS #############
-
-cov_to_mat <- function(plpData, quiet=T){
-  if(is.null(plpData$covariates))
-    return(NULL)
-  # now convert into h2o matrix
-  if(!quiet)
-    writeLines('Converting sparse data into matrix...')
-  start <- Sys.time()
-  cov <- reshape2::dcast(ff::as.ram(plpData$covariates), rowId~covariateId, value.var='covariateValue', fill=0)
-  
-  # add people with no covarites:
-  ppl <- ff::as.ram(plpData$cohorts$rowId)
-  miss.ppl <- ppl[!ppl%in%cov$rowId]
-  if(length(miss.ppl)>0){
-    cov.add <- matrix(rep(0, (ncol(cov)-1)*length(miss.ppl)   ), ncol=(ncol(cov)-1))
-    cov.add <- data.frame(miss.ppl,cov.add)
-    colnames(cov.add) <- colnames(cov)
-    cov<-  rbind(cov, cov.add)
-  }
-  
-  
-  allData <- merge(cov, ff::as.ram(plpData$outcomes[,c('rowId','outcomeCount')]), by='rowId', all.x=T)
-  allData$outcomeCount[is.na(allData$outcomeCount)] <- 0
-  #allData$outcomeCount <- as.factor(allData$outcomeCount)
-  if(!quiet)
-    writeLines(paste0('Conversion tooK:', format(Sys.time()-start, digits=3)))
-  
- return(allData)
-}
-
-
-
-
-
-
 knn_plp <- function(plpData, param, quiet=T){
   start <- Sys.time()
   k <- param$k
@@ -421,10 +384,11 @@ knn_plp <- function(plpData, param, quiet=T){
                  trainAuc = NULL,
                  trainCalibration=NULL,
                  modelSettings = list(model='knn',
-                                      k=k,
+                                      modelParameters=list(k=k),
                                       cohortId=cohortId, 
                                       outcomeId=outcomeId, 
-                                      indexFolder=indexFolder),
+                                      indexFolder=indexFolder
+                                      ),
                  metaData = plpData$metaData,
                  trainingTime=comp
   )
@@ -434,3 +398,38 @@ knn_plp <- function(plpData, param, quiet=T){
 }
 
 
+
+
+
+
+
+####### HELPER FUNCTIONS #############
+
+cov_to_mat <- function(plpData, quiet=T){
+  if(is.null(plpData$covariates))
+    return(NULL)
+  # now convert into h2o matrix
+  if(!quiet)
+    writeLines('Converting sparse data into matrix...')
+  start <- Sys.time()
+  cov <- reshape2::dcast(ff::as.ram(plpData$covariates), rowId~covariateId, value.var='covariateValue', fill=0)
+  
+  # add people with no covarites:
+  ppl <- ff::as.ram(plpData$cohorts$rowId)
+  miss.ppl <- ppl[!ppl%in%cov$rowId]
+  if(length(miss.ppl)>0){
+    cov.add <- matrix(rep(0, (ncol(cov)-1)*length(miss.ppl)   ), ncol=(ncol(cov)-1))
+    cov.add <- data.frame(miss.ppl,cov.add)
+    colnames(cov.add) <- colnames(cov)
+    cov<-  rbind(cov, cov.add)
+  }
+  
+  
+  allData <- merge(cov, ff::as.ram(plpData$outcomes[,c('rowId','outcomeCount')]), by='rowId', all.x=T)
+  allData$outcomeCount[is.na(allData$outcomeCount)] <- 0
+  #allData$outcomeCount <- as.factor(allData$outcomeCount)
+  if(!quiet)
+    writeLines(paste0('Conversion tooK:', format(Sys.time()-start, digits=3)))
+  
+  return(allData)
+}
