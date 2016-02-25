@@ -112,7 +112,7 @@ getDbPlpData <- function(connectionDetails = NULL,
     measurement <- "observation"
   } else {
     cohortDefinitionId <- "cohort_definition_id"
-    cohortDefinitionId <- "cohort_concept_id"
+    #cohortDefinitionId <- "cohort_concept_id"
     conceptClassId <- "concept_class_id"
     measurement <- "measurement"
   }
@@ -166,6 +166,7 @@ getDbPlpData <- function(connectionDetails = NULL,
                                                    outcome_condition_type_concept_ids = outcomeConditionTypeConceptIds,
                                                    first_outcome_only = firstOutcomeOnly,
                                                    start_add=startAdd,
+                                                   use_cohort_end_date = useCohortEndDate,
                                                    exclude_history=excludeHistory,
                                                    outcome_ids_exclude=outcomeIdsExclude,
                                                    cdm_version = cdmVersion,

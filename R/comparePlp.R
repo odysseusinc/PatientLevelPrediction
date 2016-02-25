@@ -107,7 +107,7 @@ comparePlp <- function(models){
     ggplot2::xlab("FPR") + ggplot2::ylab("TPR") +
     ggplot2::ggtitle("ROC Plot") +
     ggplot2::scale_colour_discrete(name = "Method") +
-    geom_abline(intercept = 0, slope = 1, color="grey", 
+    ggplot2::geom_abline(intercept = 0, slope = 1, color="grey", 
                 linetype="dashed", size=1)  #+
   #ggplot2::geom_line(model)
   
@@ -116,7 +116,7 @@ comparePlp <- function(models){
   plotCal <- list()
   length(plotCal) <- length(models)
   for(i in 1:length(models)){
-    plotCal[[i]] <- models[[i]]$performance$calPlot + ggtitle(paste0('Model: ',i))
+    plotCal[[i]] <- models[[i]]$performance$calPlot + ggplot2::ggtitle(paste0('Model: ',i))
   }
   
   
@@ -140,6 +140,11 @@ comparePlp <- function(models){
   #plot the calibration
   do.call(gridExtra::grid.arrange, c(plotCal, ncol=ceiling(sqrt(length(plotCal)))  ))
   
+  result <- list(table=result,
+                 plot.roc=plot1,
+                 plot.ss = plot3,
+                 plot.calibration=plotCal)
+  
   return(result)
 }
 
@@ -158,3 +163,95 @@ comparePlp <- function(models){
 getTPR <- function(roc, FPR=0.05){
   return(roc$TPR[which.min(abs(roc$FPR-FPR))])
 }
+
+
+#' varImportance
+#'
+#' @description
+#' Plots the variable importance of the patient level prediction model/s and returns a table of variable importances
+#' @details
+#' 
+#' @param models.list   A list of plp models or simple plp model
+#' @return
+#' A table containing the variable importances for each model
+#'
+#' @export
+varImportance <- function(models.list){
+  if(!'list'%in%class(models.list))
+    models.list <- list(models.list)
+  
+  varImport <- function(mod){
+    if(mod$model$modelSettings$model=='lr_lasso'){
+      varImp <- data.frame(covariate=names(mod$model$model$coefficients), lr_lasso=mod$model$model$coefficients)
+      varImp <- varImp[varImp$covariate!='(Intercept)',]
+      varImp$covariate <- as.double(as.character(varImp$covariate))
+    }
+    if(mod$model$modelSettings$model %in% c('lr_enet_plp','gbm_plp','randomForest_plp')){
+      varImp <- as.data.frame(mod$model$model@model$variable_importances)[,c('variable','scaled_importance')]
+      colnames(varImp) <- c('covariate', mod$model$modelSettings$model)
+    }
+    if(mod$model$modelSettings$model %in% c('nnet')){
+      varImp <- caret::varImp(mod$model$model)
+      varImp <- data.frame('covariate'=gsub('X', '', rownames(varImp$importance)), 'nnet_plp'=varImp$importance/100)
+      colnames(varImp)[2] <- 'nnet_plp'
+      rownames(varImp) <- NULL
+    }
+    if(mod$model$modelSettings$model%in%c('knn_plp','svmRadial_plp')){
+      warning('Classifier does not currently support variable importance')
+      return(NULL)
+    }
+    
+    varImp <- varImp[varImp[,2]!=0, ]
+    varImp <- varImp[order(-abs(varImp[,2])),]
+    
+    return(varImp)
+  }
+  
+  varImps <- lapply(models.list, varImport)
+  if (sum(sapply(varImps, is.null))>0)
+    varImps[-(which(sapply(varImps,is.null),arr.ind=TRUE))]
+  
+  allImps <- merge(varImps[[1]], ff::as.ram(models.list[[1]]$model$covariateRef)[,c('covariateId','covariateName')], 
+                   by.x='covariate', by.y='covariateId', all.y=T)
+  if(length(varImps)>1){
+    for (i in 2:length(varImps)){
+      allImps <- merge(allImps, varImps[[i]], by.x='covariate', by.y='covariate', all.x=T)
+    }
+  }
+  
+  # order by overall rank and plot top 100
+  allImps[,!colnames(allImps)%in%c('covariate','covariateName')][is.na(allImps[,!colnames(allImps)%in%c('covariate','covariateName')])] <- 0
+  if(sum(!colnames(allImps)%in%c('covariate','covariateName'))==1)
+    allImps <- allImps[order(-abs(allImps[,!colnames(allImps)%in%c('covariate','covariateName')])),]
+  if(sum(!colnames(allImps)%in%c('covariate','covariateName'))>1){
+    ranks <- apply(allImps[,!colnames(allImps)%in%c('covariate','covariateName')],
+                   2, function(x) rank(-abs(x)))
+    ranks.mean <- apply(ranks, 1, mean)
+    allImps <- allImps[order(ranks.mean),]
+  }
+  
+  extractName <- function(x){
+    if(length(strsplit(x,':')[[1]])>1 && nchar(x)>30)
+      x <- paste(strsplit(x,':')[[1]][-1], sep=' ')
+    if(nchar(x)>40)
+      x <- substring(x,1,40)
+    return(x)
+  }
+  
+  allImps$covariateName <- sapply(as.character(allImps$covariateName), extractName)
+  # plot top 20 overal variables
+  melted <- reshape2::melt(allImps[1:20,], id.vars=c("covariate", "covariateName"))
+  p1<-ggplot2::ggplot(melted,ggplot2::aes(x=factor(covariateName),y=as.double(value),fill=variable))+
+    ggplot2::geom_bar(stat="identity", position="dodge") + 
+    ggplot2::coord_flip()#+
+  #ggplot2::facet_wrap(variable, nrow = 1, scales = "fixed", shrink = TRUE,drop = TRUE) 
+  
+  p1
+  result <- list(table=allImps,
+                 plot=p1)
+  return(result)
+}
+
+
+
+

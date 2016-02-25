@@ -7,8 +7,9 @@ Date: 2015-11-4
 Author: Martijn J. Schuemie [aut, cre],
     Marc A. Suchard [aut],
     Patrick B. Ryan [aut],
-    Jenna Reps
-Maintainer: Martijn J. Schuemie <schuemie@ohdsi.org>
+    Jenna Reps,
+    Peter Rijnbeek
+Maintainer: Jenna Reps <notareal@email.com>
 Description: A package for creating patient level prediction models. Given a
     cohort of interest and an outcome of interest, the package can use data in the
     Common Data Model to build a large set of features. These features can then
@@ -34,7 +35,9 @@ Imports:
     gridExtra,
     caret,
     h2o,
-    genalg
+    genalg,
+    httr,
+    RJSONIO
 Suggests:
     testthat,
     pROC,

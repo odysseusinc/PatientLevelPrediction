@@ -136,8 +136,8 @@ developModel2 <- function(plpData,
     settings[[i]] <- list(data=data[[1]],
                           modelSettings = modelSettings,
                           featureSettings = featureSettings,
-                          cohortId = modelSettings$cohortId,
-                          outcomeId = modelSettings$outcomeId,
+                          cohortId = modelSettings$param$cohortId,
+                          outcomeId = modelSettings$param$outcomeId,
                           loc=fileLoc)
     
     dataSummary= list(trainCohort =nrow(data[[1]]$cohorts),

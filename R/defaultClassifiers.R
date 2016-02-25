@@ -23,6 +23,7 @@ lr_lasso <- function(plpData, param,search='adaptive', quiet=F,...){
                  modelSettings = list(model='lr_lasso', param=param,
                                       outcomeId=param$outcomeId, cohortId=param$cohortId),
                  metaData = plpData$metaData,
+                 covariateRef = plpData$covariateRef,
                  trainingTime=comp
   )
   class(result) <- 'plpModel'
@@ -92,6 +93,7 @@ nnet_plp <- function(plpData, param, search='grid',quiet=F,... ){
                  modelSettings = list(model='nnet',modelParameters=param.best,
                                       outcomeId=param$outcomeId, cohortId=param$cohortId),
                  metaData = plpData$metaData,
+                 covariateRef = plpData$covariateRef,
                  trainingTime =comp
   )
   class(result) <- 'plpModel'
@@ -150,6 +152,7 @@ svmRadial_plp <- function(plpData, param, search='grid', quiet=F,...){
                  modelSettings = list(model='svmRadial',modelParameters=param.best,
                                       outcomeId=param$outcomeId, cohortId=param$cohortId),
                  metaData = plpData$metaData,
+                 covariateRef = plpData$covariateRef,
                  trainingTime =comp
   )
   class(result) <- 'plpModel'
@@ -210,6 +213,7 @@ randomForest_plp <- function(plpData, param, search='grid', quiet=F,...){
                  modelSettings = list(model='randomForest_plp',modelParameters=param.best,
                                       outcomeId=paramInput$outcomeId, cohortId=paramInput$cohortId),
                  metaData = plpData$metaData,
+                 covariateRef = plpData$covariateRef,
                  trainingTime =comp
   )
   class(result) <- 'plpModel'
@@ -267,6 +271,7 @@ gbm_plp <- function(plpData, param, search='grid', quiet=F,...){
                  modelSettings = list(model='gbm_plp',modelParameters=param.best,
                                       outcomeId=paramInput$outcomeId, cohortId=paramInput$cohortId),
                  metaData = plpData$metaData,
+                 covariateRef = plpData$covariateRef,
                  trainingTime =comp
   )
   class(result) <- 'plpModel'
@@ -324,7 +329,9 @@ lr_enet_plp <- function(plpData, param, search='grid', quiet=F,...){
                  trainCalibration= NULL,
                  modelSettings = list(model='glm_plp',modelParameters=param.best,
                                       outcomeId=param$outcomeId, cohortId=param$cohortId),
-                 metaData = plpData$metaData
+                 metaData = plpData$metaData,
+                 covariateRef = plpData$covariateRef,
+                 trainingTime =comp
   )
   class(result) <- 'plpModel'
   attr(result, 'type') <- 'h2o'
@@ -390,7 +397,8 @@ knn_plp <- function(plpData, param, quiet=T){
                                       indexFolder=indexFolder
                                       ),
                  metaData = plpData$metaData,
-                 trainingTime=comp
+                 covariateRef = plpData$covariateRef,
+                 trainingTime =comp
   )
   class(result) <- 'plpModel'
   attr(result, 'type') <- 'knn'
