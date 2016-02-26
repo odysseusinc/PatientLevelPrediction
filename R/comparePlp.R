@@ -74,8 +74,8 @@ comparePlp <- function(models){
               format(x$performance$aveP, digits=3),
               format(getTPR(x$performance$roc, FPR=0.05), digits=3), # could get TPR @ 5%/10%  FPR
               format(getTPR(x$performance$roc, FPR=0.1), digits=3),
-              eval(x$model$metaData$call$cohortDatabaseSchema),
-              ifelse(is.null(x$validationDatabase),'NA', x$validationDatabase)
+              x$model$metaData$database,
+              ifelse(is.null(x$validationDatabase),x$model$metaData$database, x$validationDatabase)
     )
     
     names(res) <- c('model','Parameters',
@@ -187,7 +187,7 @@ varImportance <- function(models.list){
   # get model info for label
   getModDetails <- function(mod){
   return(c(model = mod$model$modelSettings$model,
-  database= eval(mod$model$metaData$call$cohortDatabaseSchema),
+  database= mod$model$metaData$database,
   validation = mod$evalType,
   parameters = paste(names(mod$model$modelSettings$modelParameters), mod$model$modelSettings$modelParameters,
                      collapse=',', sep='-')))}

@@ -8,7 +8,7 @@
 
 #' @export
 newDataEval <- function(newData, plpModel){
-  if(!'overall.plpModel' %in% class(plpmodel)){
+  if(!'overall.plpModel' %in% class(plpModel)){
     stop('You did not enter a correct model: try adding [[1]] to your input, e.g., mod[[1]] instead of mod')
   }
   start.all <-  Sys.time()
@@ -51,13 +51,18 @@ newDataEval <- function(newData, plpModel){
  results <- list(prediction=prediction,
                  performance=performance,
                  time=plpModel$time,
+                 evalType='external data',
                  predictionTime=comp,
-                 trainDatabase= eval(plpModel$model$metaData$call$cohortDatabaseSchema),
-                 validationDatabase= eval(newData$metaData$call$cdmDatabaseSchema),
+                 trainDatabase= plpModel$model$metaData$database,
+                 validationDatabase= newData$metaData$database,
                  model= list(metaData=plpModel$model$metaData,
                              trainAUC= plpModel$model$trainAUC,
-                             dataSummary=plpModel$dataSummary, # update test with newdata counts!
-                             modelSettings=plpModel$model$modelSettings)
+                             modelSettings=plpModel$model$modelSettings),
+                 dataSummary=list(trainCohort=plpModel$dataSummary$trainCohort,
+                                  trainOutcomeCount=plpModel$dataSummary$trainOutcomeCount,
+                                  testCohort = dim(data$cohorts)[1],
+                                  testOutcomeCount = dim(data$outcomes)[1]
+                                  )# update test with newdata counts!
  )
   
 }

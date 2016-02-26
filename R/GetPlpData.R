@@ -242,6 +242,7 @@ getDbPlpData <- function(connectionDetails = NULL,
                    useCohortEndDate = useCohortEndDate,
                    windowPersistence = windowPersistence,
                    deletedCovariateIds = covariateData$metaData$deletedCovariateIds,
+                   database= eval(match.call()$cdmDatabaseSchema),
                    call = match.call())
 
   result <- list(cohorts = cohorts,
