@@ -183,7 +183,7 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
   if(!is.null(minCohortTime)){
     writeLines(paste0('Filtering patients without sufficient cohort time of ', minCohortTime, ' days'))
     t <- cohorts$time < minCohortTime
-    excluded <- NULL
+    excluded < list()
     if(sum(t)>0)
       excluded <- cohorts[ffbase::ffwhich(t, t==T),]
     excluded$reason <- ff::ff(as.factor(rep('Insufficient cohort time',length(excluded$rowId))))
@@ -202,7 +202,7 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
   if(!is.null(minPriorObservation)){
     writeLines(paste0('Filtering patients without sufficient observation of ', minPriorObservation, ' days'))
     t <- cohorts$priorIndexObs < minPriorObservation
-    excluded <- NULL
+    excluded < list()
     if(sum(t)>0)
       excluded <- cohorts[ffbase::ffwhich(t, t==T),]
     excluded$reason <- ff::ff(as.factor(rep('Insufficient history',length(excluded$rowId))))
@@ -285,7 +285,7 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
       if(sum(t==T)>0){
         rowIds.exclude <- unique(exclude$rowId[ffbase::ffwhich(t,t==T)])
         t <- ffbase::ffmatch(cohorts$rowId, table=rowIds.exclude)
-        excluded <- NULL
+        excluded < list()
         if(sum(!is.na(t))>0)
           excluded <- cohorts[ffbase::ffwhich(t, !is.na(t)),]
         excluded$reason <- ff::ff(as.factor(rep('Prior history',length(excluded$rowId))))
