@@ -189,7 +189,7 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
     excluded$reason <- ff::ff(as.factor(rep('Insufficient cohort time',length(excluded$rowId))))
     if(is.null(exclude.main))
       exclude.main <- excluded
-    if(!is.null(exclude.main) && !is.null(exclude) )
+    if(!is.null(exclude.main) && !is.null(excluded) )
       exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
     if(sum(t==F)==0)
       stop('Minimum cohort time criteria has excluded everyone')
@@ -208,7 +208,7 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
     excluded$reason <- ff::ff(as.factor(rep('Insufficient history',length(excluded$rowId))))
     if(is.null(exclude.main))
       exclude.main <- excluded
-    if(!is.null(exclude.main) && !is.null(exclude))
+    if(!is.null(exclude.main) && !is.null(excluded))
       exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
     if(sum(t==F)==0)
       stop('Criteria has excluded everyone after removing minimum observation time people - please choose different criteria')
@@ -291,7 +291,7 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
         excluded$reason <- ff::ff(as.factor(rep('Prior history',length(excluded$rowId))))
       if(is.null(exclude.main))
         exclude.main <- excluded
-      if(!is.null(exclude.main) && !is.null(exclude))
+      if(!is.null(exclude.main) && !is.null(excluded))
         exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
       if(sum(is.na(t))==0)
         stop('excluded all people - please revise exclusion criteria')
