@@ -33,11 +33,12 @@ Imports:
     survival,
     reshape2,
     gridExtra,
-    caret,
-    h2o,
     genalg,
     httr,
-    RJSONIO
+    RJSONIO,
+    caret,
+    h2o,
+    curl
 Suggests:
     testthat,
     pROC,
