@@ -38,7 +38,8 @@ Imports:
     RJSONIO,
     caret,
     h2o,
-    curl
+    curl,
+    rJava
 Suggests:
     testthat,
     pROC,
