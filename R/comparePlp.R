@@ -38,6 +38,8 @@
 #' @export
 
 comparePlp <- function(models){
+  if('overall.plpModel'%in%class(models))
+    models <- list(models)
   
   # extract model details, training details, cv performance and validation performance
   
@@ -73,7 +75,7 @@ comparePlp <- function(models){
               format(getTPR(x$performance$roc, FPR=0.05), digits=3), # could get TPR @ 5%/10%  FPR
               format(getTPR(x$performance$roc, FPR=0.1), digits=3),
               eval(x$model$metaData$call$cohortDatabaseSchema),
-              x$validationDatabase
+              ifelse(is.null(x$validationDatabase),'NA', x$validationDatabase)
     )
     
     names(res) <- c('model','Parameters',
@@ -179,7 +181,7 @@ getTPR <- function(roc, FPR=0.05){
 #'
 #' @export
 varImportance <- function(models.list){
-  if(!'list'%in%class(models.list))
+  if('overall.plpModel'%in%class(models.list))
     models.list <- list(models.list)
   
   # get model info for label
