@@ -4,7 +4,7 @@
 \alias{createConceptCovariateSettings}
 \title{Create Concept covariate settings}
 \usage{
-createConceptCovariateSettings(conceptList)
+createConceptCovariateSettings(conceptList, useDemo = TRUE)
 }
 \arguments{
 \item{conceptList}{A list of lists - each inner list contains two objects: conceptSet a vector of conceptSetIds 

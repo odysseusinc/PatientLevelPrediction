@@ -10,8 +10,10 @@ lr_lasso <- function(plpData, param,search='adaptive', quiet=F,...){
                                      cohortId = param$cohortId,
                                      outcomeId = param$outcomeId,
                                      prior = createPrior("laplace",
-                                                         exclude = c(0),
-                                                         variance = val))
+                                                         exclude = c(0)),#,
+                                                         #variance = val),
+                                     control = createControl(noiseLevel = "silent", cvType = "auto",
+                                                             startingVariance = val))
   comp <- Sys.time() - start
   if(!quiet)
     writeLines(paste0('Model Logistic Regression with Lasso regularisation trained - took:',  format(comp, digits=3)))

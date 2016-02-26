@@ -72,7 +72,7 @@ evaluatePlp <- function(plpPredict, plpData, sparse=T ){
 }
 
 sparseMetric <- function(prediction,plpData,predLab, aveP=T){
-  writeLines(paste0('na: ', sum(is.na(prediction$value))))
+  #writeLines(paste0('na: ', sum(is.na(prediction$value))))
   auc <- computeAuc(prediction,
                     plpData,
                     removeDropoutsForLr = T,

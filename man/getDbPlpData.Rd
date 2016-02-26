@@ -10,7 +10,7 @@ getDbPlpData(connectionDetails = NULL, cdmDatabaseSchema,
   useCohortEndDate = TRUE, windowPersistence = 0, covariateSettings,
   outcomeDatabaseSchema = cdmDatabaseSchema,
   outcomeTable = "condition_occurrence", outcomeIds = c(),
-  outcomeIdsExclude = c(), startAdd = 0,
+  outcomeIdsExclude = c(), startAdd = 0, endAdd = NULL,
   outcomeConditionTypeConceptIds = "", firstOutcomeOnly = FALSE,
   excludeHistory = FALSE, cdmVersion = "4")
 }

@@ -165,6 +165,7 @@ developModel2 <- function(plpData,
                          prediction=prediction,
                          performance=performance,
                          time=comp)
+    class(results[[i]]) <- c('list','overall.plpModel')
   }
   
   #return: trainingSummary, valSummary, settings

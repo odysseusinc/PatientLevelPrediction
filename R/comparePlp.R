@@ -1,4 +1,4 @@
-#' comparePlp
+#' function comparePlp
 #'
 #' @description
 #' Compares the performance of two or more patient level prediction models
@@ -71,7 +71,9 @@ comparePlp <- function(models){
               format(as.double(x$performance$auc), digits=3), # with lb/up
               format(x$performance$aveP, digits=3),
               format(getTPR(x$performance$roc, FPR=0.05), digits=3), # could get TPR @ 5%/10%  FPR
-              format(getTPR(x$performance$roc, FPR=0.1), digits=3)
+              format(getTPR(x$performance$roc, FPR=0.1), digits=3),
+              eval(x$model$metaData$call$cohortDatabaseSchema),
+              x$validationDatabase
     )
     
     names(res) <- c('model','Parameters',
@@ -81,7 +83,7 @@ comparePlp <- function(models){
                     'train N', 'train Outcome', 'test N', 'test Outcome',
                     'cvAUC',
                     'Evaluation', 'testAUC', 'lower', 'upper', 'AP', 
-                    'TPR@5FPR', 'TPR@10FPR'
+                    'TPR@5FPR', 'TPR@10FPR', 'TrainDatabase', 'TestDatabase'
     )
     return(res) 
   }
@@ -129,7 +131,7 @@ comparePlp <- function(models){
     ggplot2::theme(legend.position="none")
   
   # Create a table plot
-  tbl1 <- gridExtra::tableGrob(result[,c(1:7)])
+  tbl1 <- gridExtra::tableGrob(result[,c(1,20,21,2:7)])
   tbl2 <- gridExtra::tableGrob(result[,c(1,8:19)])
   # Plot chart and table into one object
   gridExtra::grid.arrange(gridExtra::arrangeGrob(plot1, plot3, ncol=2), 
@@ -180,20 +182,31 @@ varImportance <- function(models.list){
   if(!'list'%in%class(models.list))
     models.list <- list(models.list)
   
+  # get model info for label
+  getModDetails <- function(mod){
+  return(c(model = mod$model$modelSettings$model,
+  database= eval(mod$model$metaData$call$cohortDatabaseSchema),
+  validation = mod$evalType,
+  parameters = paste(names(mod$model$modelSettings$modelParameters), mod$model$modelSettings$modelParameters,
+                     collapse=',', sep='-')))}
+  modDetails <- data.frame(modelId=paste0('Model: ', 1:length(models.list)),t(sapply(models.list,getModDetails)))
+
+  
   varImport <- function(mod){
     if(mod$model$modelSettings$model=='lr_lasso'){
       varImp <- data.frame(covariate=names(mod$model$model$coefficients), lr_lasso=mod$model$model$coefficients)
+      colnames(varImp)[2] <- paste0('Model: ', mod$id)
       varImp <- varImp[varImp$covariate!='(Intercept)',]
       varImp$covariate <- as.double(as.character(varImp$covariate))
     }
     if(mod$model$modelSettings$model %in% c('lr_enet_plp','gbm_plp','randomForest_plp')){
       varImp <- as.data.frame(mod$model$model@model$variable_importances)[,c('variable','scaled_importance')]
-      colnames(varImp) <- c('covariate', mod$model$modelSettings$model)
+      colnames(varImp) <- c('covariate', paste0('Model: ', mod$id) )
     }
     if(mod$model$modelSettings$model %in% c('nnet')){
       varImp <- caret::varImp(mod$model$model)
       varImp <- data.frame('covariate'=gsub('X', '', rownames(varImp$importance)), 'nnet_plp'=varImp$importance/100)
-      colnames(varImp)[2] <- 'nnet_plp'
+      colnames(varImp)[2] <- paste0('Model: ', mod$id)
       rownames(varImp) <- NULL
     }
     if(mod$model$modelSettings$model%in%c('knn_plp','svmRadial_plp')){
@@ -207,7 +220,9 @@ varImportance <- function(models.list){
     return(varImp)
   }
   
+  for(i in 1:length(models.list)){models.list[[i]]$id <- i}
   varImps <- lapply(models.list, varImport)
+  
   if (sum(sapply(varImps, is.null))>0)
     varImps[-(which(sapply(varImps,is.null),arr.ind=TRUE))]
   
@@ -239,19 +254,36 @@ varImportance <- function(models.list){
   }
   
   allImps$covariateName <- sapply(as.character(allImps$covariateName), extractName)
+  # do this to get order by value in ggplot:
+  allImps$covariateName=factor(allImps$covariateName,levels=rev(allImps$covariateName))
+  
   # plot top 20 overal variables
   melted <- reshape2::melt(allImps[1:20,], id.vars=c("covariate", "covariateName"))
+  
   p1<-ggplot2::ggplot(melted,ggplot2::aes(x=factor(covariateName),y=as.double(value),fill=variable))+
     ggplot2::geom_bar(stat="identity", position="dodge") + 
-    ggplot2::coord_flip()#+
+    ggplot2::coord_flip() +
+    ggplot2::ylab("Variable Importance") +
+    ggplot2::xlab("Variable") +
+    ggplot2::ggtitle("Model concensus top 20 variables") +
+    ggplot2::scale_fill_discrete(name="ModelId")
+  
+  #+
   #ggplot2::facet_wrap(variable, nrow = 1, scales = "fixed", shrink = TRUE,drop = TRUE) 
   
-  p1
+  # Create a table plot
+  tbl1 <- gridExtra::tableGrob(modDetails)
+  # Plot chart and table into one object
+  gridExtra::grid.arrange(p1, 
+                          tbl1,
+                          nrow=2,
+                          as.table=TRUE,
+                          heights=c(4,1))
+  
   result <- list(table=allImps,
                  plot=p1)
   return(result)
 }
-
 
 
 

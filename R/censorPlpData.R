@@ -160,17 +160,21 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
     ppl <- NULL
     for (i in 1:length(newOutcome)){
       t <- outcomes$outcomeId==newOutcome[i]
-      if(is.null(ppl))
-        ppl <- ff::as.ram(unique(outcomes$rowId[ffwhich(t, t==T)]))
-      if(!is.null(ppl))
-        ppl <- intersect(ppl, ff::as.ram(unique(outcomes$rowId[ffbase::ffwhich(t, t==T)])))
+      if(sum(t)>0){
+        if(is.null(ppl))
+          ppl <- ff::as.ram(unique(outcomes$rowId[ffwhich(t, t==T)]))
+        if(!is.null(ppl))
+          ppl <- intersect(ppl, ff::as.ram(unique(outcomes$rowId[ffbase::ffwhich(t, t==T)])))
+      }
     }
     
-    newOut <- ff::ffdf(rowId=ff::as.ff(ppl), outcomeId=ff::as.ff(rep(-1, length(ppl))), 
-                   outcomeCount = ff::as.ff(rep(1, length(ppl))),
-                   timeToEvent = ff::as.ff(rep(1, length(ppl))))
-    writeLines(paste0('Added: ', nrow(newOut) , ' outcomes for -1'))
-    outcomes <- ffbase::ffdfappend(outcomes, newOut)
+    if(!is.null(ppl)){
+      newOut <- ff::ffdf(rowId=ff::as.ff(ppl), outcomeId=ff::as.ff(rep(-1, length(ppl))), 
+                     outcomeCount = ff::as.ff(rep(1, length(ppl))),
+                     timeToEvent = ff::as.ff(rep(1, length(ppl))))
+      writeLines(paste0('Added: ', nrow(newOut) , ' outcomes for -1'))
+      outcomes <- ffbase::ffdfappend(outcomes, newOut)
+    }
     
   }
   
@@ -179,13 +183,18 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
   if(!is.null(minCohortTime)){
     writeLines(paste0('Filtering patients without sufficient cohort time of ', minCohortTime, ' days'))
     t <- cohorts$time < minCohortTime
-    excluded <- cohorts[ffbase::ffwhich(t, t==T),]
+    excluded <- NULL
+    if(sum(t)>0)
+      excluded <- cohorts[ffbase::ffwhich(t, t==T),]
     excluded$reason <- ff::ff(as.factor(rep('Insufficient cohort time',length(excluded$rowId))))
     if(is.null(exclude.main))
       exclude.main <- excluded
-    if(!is.null(exclude.main))
+    if(!is.null(exclude.main) && !is.null(exclude) )
       exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
-    cohorts <- cohorts[ffbase::ffwhich(t,t==F),]
+    if(sum(t==F)==0)
+      stop('Minimum cohort time criteria has excluded everyone')
+    if(sum(t==F)>0)
+      cohorts <- cohorts[ffbase::ffwhich(t,t==F),]
     writeLines(paste0('Excluded ',sum(t), ' cohort rows'))
   }
   
@@ -193,13 +202,18 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
   if(!is.null(minPriorObservation)){
     writeLines(paste0('Filtering patients without sufficient observation of ', minPriorObservation, ' days'))
     t <- cohorts$priorIndexObs < minPriorObservation
-    excluded <- cohorts[ffbase::ffwhich(t, t==T),]
+    excluded <- NULL
+    if(sum(t)>0)
+      excluded <- cohorts[ffbase::ffwhich(t, t==T),]
     excluded$reason <- ff::ff(as.factor(rep('Insufficient history',length(excluded$rowId))))
     if(is.null(exclude.main))
       exclude.main <- excluded
-    if(!is.null(exclude.main))
+    if(!is.null(exclude.main) && !is.null(exclude))
       exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
-    cohorts <- cohorts[ffbase::ffwhich(t,t==F),]
+    if(sum(t==F)==0)
+      stop('Criteria has excluded everyone after removing minimum observation time people - please choose different criteria')
+    if(sum(t==F)>0)
+      cohorts <- cohorts[ffbase::ffwhich(t,t==F),]
     writeLines(paste0('Excluded ',sum(t), ' cohort rows'))
   }
   
@@ -224,9 +238,8 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
       writeLines(paste0('Excluded ', nrow(excluded), ' cohort rows'))
     }
     if(sum(t)==0){
-      cohorts <- NULL
-      writeLines('No People left after specified filtering...')
-      return(0)
+      stop('No People left after specified filtering- error at date interval - please revise exclusion criteria')
+      #return(0)
     }
   }
   
@@ -249,7 +262,8 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
                      timeToEvent = newOut$time*-1 )
       
       outcomes <- ffbase::ffdfappend(outcomes, newOut)
-      exclude <- exclude[ffbase::ffwhich(t, t==F),]
+      if(sum(t==F)>0)
+        exclude <- exclude[ffbase::ffwhich(t, t==F),]
     }
   }
   
@@ -269,14 +283,18 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
         -1*exclude$time >= as.double(lower)) &
         exclude$outcomeId == conceptName
       if(sum(t==T)>0){
-      rowIds.exclude <- unique(exclude$rowId[ffbase::ffwhich(t,t==T)])
-      t <- ffbase::ffmatch(cohorts$rowId, table=rowIds.exclude)
-      excluded <- cohorts[ffbase::ffwhich(t, !is.na(t)),]
-      excluded$reason <- ff::ff(as.factor(rep('Prior history',length(excluded$rowId))))
+        rowIds.exclude <- unique(exclude$rowId[ffbase::ffwhich(t,t==T)])
+        t <- ffbase::ffmatch(cohorts$rowId, table=rowIds.exclude)
+        excluded <- NULL
+        if(sum(!is.na(t))>0)
+          excluded <- cohorts[ffbase::ffwhich(t, !is.na(t)),]
+        excluded$reason <- ff::ff(as.factor(rep('Prior history',length(excluded$rowId))))
       if(is.null(exclude.main))
         exclude.main <- excluded
-      if(!is.null(exclude.main))
+      if(!is.null(exclude.main) && !is.null(exclude))
         exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
+      if(sum(is.na(t))==0)
+        stop('excluded all people - please revise exclusion criteria')
       cohorts <- cohorts[ffbase::ffwhich(t, is.na(t)),]
       
       # t <- ffmatch(exclude$rowId, table=rowIds.exclude)
@@ -291,15 +309,17 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
   t <- ffbase::ffmatch(outcomes$rowId, table=cohorts$rowId)
   if(sum(!is.na(t))>0) outcomes <- outcomes[ffbase::ffwhich(t, !is.na(t)),]
   if(sum(!is.na(t))==0){
-    outcomes <- NULL
-    writeLines('All outcomes are filtered...')
-    return(0)
+    #outcomes <- NULL
+    stop('All outcomes are filtered... Please revise exclusion criteria')
+    #return(0)
   }
   
   # now filter the classification
   if(length(classificationCensor)>0){
     if (!is.null(outcomeIds)){
       t <- ffbase::ffmatch(outcomes$outcomeId, table=outcomeIds)
+      if(sum(!is.na(t))==0)
+        stop('No outcome found for the specified outcomeIds')
       outcomes <- outcomes[ffbase::ffwhich(t, !is.na(t)),]
     }
     
@@ -328,6 +348,8 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
           if(!is.null(exclude.main))
             exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
         }
+        if(sum(!t)==0)
+          stop('excluded all non-outcome people - please revise exclusion criteria')
         
         if(sum(!t)>0){
           cohorts <- cohorts[ffbase::ffwhich(t, t==F),]
@@ -346,17 +368,20 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
           t2 <- cohorts$postIndexObs < predictionPeriod[2]
           t <- !is.na(t1)&t2
           
-          excluded <- cohorts[ffbase::ffwhich(t, t==T),]
-          excluded$reason <- ff::ff(as.factor(rep('Insufficient risk prediction period',length(excluded$rowId))))
-          if(is.null(exclude.main))
-            exclude.main <- excluded
-          if(!is.null(exclude.main))
-            exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
+          if(sum(t)>0){
+            excluded <- cohorts[ffbase::ffwhich(t, t==T),]
+            excluded$reason <- ff::ff(as.factor(rep('Insufficient risk prediction period',length(excluded$rowId))))
+            if(is.null(exclude.main))
+              exclude.main <- excluded
+            if(!is.null(exclude.main))
+              exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
   
           writeLines(paste0('Excluded ',sum(t),
                             ' cohort rows (',ifelse(ind==1,'with','without'),' outcome) because insufficient risk prediction period'))
           
-          
+          }
+          if(sum(!t)==0)
+            stop('excluded all outcome people - please revise exclusion criteria')
           cohorts <- cohorts[ffbase::ffwhich(t, t==F),]
         }
       }
@@ -371,17 +396,20 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
           t2 <- cohorts$postIndexObs < classificationCensor$minPostObservation
           t <- !is.na(t1)&t2
           
+          if(sum(t)>0){
+            excluded <- cohorts[ffbase::ffwhich(t, t==T),]
+            excluded$reason <- ff::ff(as.factor(rep('Insufficient post observation',length(excluded$rowId))))
+            if(is.null(exclude.main))
+              exclude.main <- excluded
+            if(!is.null(exclude.main))
+              exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
           
-          excluded <- cohorts[ffbase::ffwhich(t, t==T),]
-          excluded$reason <- ff::ff(as.factor(rep('Insufficient post observation',length(excluded$rowId))))
-          if(is.null(exclude.main))
-            exclude.main <- excluded
-          if(!is.null(exclude.main))
-            exclude.main <- ffbase::ffdfappend(exclude.main, excluded)
           
           writeLines(paste0('Excluded ',sum(t),
                             ' cohort rows (',ifelse(ind==1,'with','without'),' outcome) because insufficient post observation'))
-          
+          }
+          if(sum(!t)==0)
+            stop('excluded all outcome people - please revise exclusion criteria')
           cohorts <- cohorts[ffbase::ffwhich(t, t==F),]
         }
       }
@@ -403,8 +431,12 @@ censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome
   
   includedIds <- unique(cohorts$rowId)
   t <- ffbase::ffmatch(covariates$rowId, table=includedIds)
+  if(sum(!is.na(t))==0)
+    stop('excluded all people with records - please revise exclusion criteria')
   covariates <- covariates[ffbase::ffwhich(t, !is.na(t)),]
   t <- ffbase::ffmatch(outcomes$rowId, table=includedIds)
+  if(sum(!is.na(t))==0)
+    stop('excluded all outcomes - please revise exclusion criteria')
   outcomes <- outcomes[ffbase::ffwhich(t, !is.na(t)),]
   
   metaData <- plpData$metaData

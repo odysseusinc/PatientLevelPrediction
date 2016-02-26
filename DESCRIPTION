@@ -39,7 +39,8 @@ Imports:
     caret,
     h2o,
     curl,
-    rJava
+    rJava,
+    pbkrtest
 Suggests:
     testthat,
     pROC,

@@ -29,7 +29,7 @@ limitations under the License.
 {DEFAULT @cdm_version == '4'}
 {DEFAULT @cohort_definition_id = 'cohort_concept_id'} 
 {DEFAULT @start_add = 0} 
-{DEFAULT @end_add = 0} 
+{DEFAULT @end_add = 365} 
 {DEFAULT @use_cohort_end_date = FALSE} 
 
 
@@ -104,7 +104,7 @@ INNER JOIN (
 ) outcome
 ON outcome.person_id = exposure.subject_id
 	AND outcome_date >= dateadd(day, @start_add, exposure.cohort_start_date)
-	{@use_cohort_end_date}?{AND outcome_date <= dateadd(day, @end_add, exposure.cohort_end_date)}
+	AND outcome_date <= dateadd(day, @end_add, {@use_cohort_end_date}?{exposure.cohort_end_date}:{exposure.cohort_start_date}   )
 GROUP BY exposure.row_id,
 	exposure.subject_id,
 	exposure.cohort_start_date,
