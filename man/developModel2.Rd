@@ -78,6 +78,7 @@ the cohprt dates.  The user can then specify whether they wish to exclude patien
 during the whole risk period, cohort period or experienced the outcome prior to the risk period.
 }
 \examples{
+\dontrun{
 #******** EXAMPLE 1 ********* 
 #lasso logistic regression oredicting outcome 2 in cohorts 1 and 3 
 #using no feature selection with a year split evaluation:
@@ -101,6 +102,6 @@ mod_gbm <- developModel2(plpData= plpData.censor,
                          featureSettings = featSet_gbm,
                          modelSettings = modset_gbm,
                          type='year')
-
+}
 }
 

@@ -6,6 +6,7 @@
 #' The function summarises and plots the performance of the input models for comparison
 #' @param models                           A list of plp models
 #' @examples
+#' \dontrun{
 #' modset_llr  <- list(model='lr_lasso',
 #'                    param=list(variance =0.001, cohortId=c(1,2), outcomeId=2))
 #' class(modset_llr) <- 'modelSettings'
@@ -32,9 +33,10 @@
 #' allModels <- list(model1[[1]], model2[[1]], model3[[1]])   
 #' 
 #' comparePlp(allModels)                                                                    
-#' 
+#' }
 #' @return
 #' A table summarising the performance value comparision and plots.
+#' 
 #' @export
 
 comparePlp <- function(models){
@@ -80,7 +82,6 @@ comparePlp <- function(models){
     
     names(res) <- c('model','Parameters',
                     'featureSel1', 'featureSel2', 'featureSel3',
-                    #'modelLocation', 
                     'time',
                     'train N', 'train Outcome', 'test N', 'test Outcome',
                     'cvAUC',

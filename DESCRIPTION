@@ -50,4 +50,4 @@ Suggests:
     OhdsiRTools
 LinkingTo: Rcpp
 NeedsCompilation: yes
-RoxygenNote: 5.0.0
+RoxygenNote: 5.0.1

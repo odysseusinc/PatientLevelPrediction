@@ -106,15 +106,16 @@ the cohprt dates.  The user can then specify whether they wish to exclude patien
 during the whole risk period, cohort period or experienced the outcome prior to the risk period.
 }
 \examples{
+\dontrun{
 # Filter any patients with an index before 2008-01-01 or after 2011-01-01
 # and who have less than 365 days observation prior to index
-plpData.censor censorPlpData(plpData, minPriorObservation = 365, 
+plpData.censor <- censorPlpData(plpData, minPriorObservation = 365, 
 dateInterval = c('2008-01-01','2011-01-01'))
 
 # Filter patients with less than 100 days observtion prior to index
 # also filter all people who are not observed for
 # at least 100 days post index 
-plpData.censor censorPlpData(plpData, minPriorObservation= 100, 
+plpData.censor <- censorPlpData(plpData, minPriorObservation= 100, 
 minCohortTime=NULL, 
 classificationCensor=list( minPostObservation=100,
                          insufficientPostObservation = c('exclude','exclude')
@@ -139,6 +140,7 @@ classificationCensor=list(minPostObservation=365,
                          insufficientPostObservation = c('exclude','exclude')
                          )
                          )                         
+}
 
 }
 

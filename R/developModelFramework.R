@@ -85,6 +85,7 @@
 #'
 #' @export
 #' @examples
+#' \dontrun{
 #' #******** EXAMPLE 1 ********* 
 #' #lasso logistic regression oredicting outcome 2 in cohorts 1 and 3 
 #' #using no feature selection with a year split evaluation:
@@ -108,7 +109,8 @@
 #'                          featureSettings = featSet_gbm,
 #'                          modelSettings = modset_gbm,
 #'                          type='year')
-#' 
+#' }
+#' @export
 developModel2 <- function(plpData,
                          modelSettings,
                          featureSettings,

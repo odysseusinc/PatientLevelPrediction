@@ -2,7 +2,7 @@
 % Please edit documentation in R/comparePlp.R
 \name{comparePlp}
 \alias{comparePlp}
-\title{comparePlp}
+\title{function comparePlp}
 \usage{
 comparePlp(models)
 }
@@ -19,6 +19,7 @@ Compares the performance of two or more patient level prediction models
 The function summarises and plots the performance of the input models for comparison
 }
 \examples{
+\dontrun{
 modset_llr  <- list(model='lr_lasso',
                    param=list(variance =0.001, cohortId=c(1,2), outcomeId=2))
 class(modset_llr) <- 'modelSettings'
@@ -45,6 +46,6 @@ model3 <- developModel2(plpData= plpData.censor,
 allModels <- list(model1[[1]], model2[[1]], model3[[1]])   
 
 comparePlp(allModels)                                                                    
-
+}
 }
 

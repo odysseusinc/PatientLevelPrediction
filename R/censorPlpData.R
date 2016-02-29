@@ -77,15 +77,16 @@
 #'                                         }
 #' @param  survivalCensor                 A list containing the criteria for censoring the data...                       
 #' @examples 
+#' \dontrun{
 #' # Filter any patients with an index before 2008-01-01 or after 2011-01-01
 #' # and who have less than 365 days observation prior to index
-#' plpData.censor censorPlpData(plpData, minPriorObservation = 365, 
+#' plpData.censor <- censorPlpData(plpData, minPriorObservation = 365, 
 #' dateInterval = c('2008-01-01','2011-01-01'))
 #' 
 #' # Filter patients with less than 100 days observtion prior to index
 #' # also filter all people who are not observed for
 #' # at least 100 days post index 
-#' plpData.censor censorPlpData(plpData, minPriorObservation= 100, 
+#' plpData.censor <- censorPlpData(plpData, minPriorObservation= 100, 
 #' minCohortTime=NULL, 
 #' classificationCensor=list( minPostObservation=100,
 #'                          insufficientPostObservation = c('exclude','exclude')
@@ -110,8 +111,9 @@
 #'                          insufficientPostObservation = c('exclude','exclude')
 #'                          )
 #'                          )                         
+#' }
 #' 
-#' @return
+#' @return 
 #' An object of type \code{plpData} containing information on the prediction problem that only contains the
 #' data satisfying the user's specified censoring options. This object will
 #' contain the following data:
@@ -130,10 +132,8 @@
 #' \item{metaData}{A list of objects with information on how the plpData object was constructed
 #' and censoring details.  The list member named 'excluded' contains a ffdf of the excluded 
 #' people and reason for exclusion.} 
-#'
+#' 
 #' @export
-
-
 censorPlpData <- function(plpData, outcomeIds=NULL, outcomeTime=NULL, newOutcome=NULL,
                           predictionPeriod =NULL,  dateInterval=NULL,
                           minPriorObservation= 365 #washoutWindow
