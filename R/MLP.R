@@ -28,6 +28,17 @@
 #' @export
 setMLP <- function(size=4, alpha=0.00001, seed=NULL){
   
+  if(!class(seed)%in%c('numeric','NULL'))
+    stop('Invalid seed')
+  if(class(size)!='numeric')
+    stop('size must be a numeric value >0 ')
+  if(size < 1)
+    stop('size must be greater that 0')
+  if(class(alpha)!='numeric')
+    stop('alpha must be a numeric value >0')
+  if(alpha <= 0)
+    stop('alpha must be greater that 0')
+  
   # test python is available and the required dependancies are there:
   if (!PythonInR::pyIsConnected()){
     tryCatch({
@@ -37,6 +48,26 @@ setMLP <- function(size=4, alpha=0.00001, seed=NULL){
        }  
     )
   }
+  
+  # test to make sure you have the version required for MLP
+  if ( !PythonInR::pyIsConnected() || .Platform$OS.type=="unix"){ 
+    PythonInR::pyConnect()
+    PythonInR::pyOptions("numpyAlias", "np")
+    PythonInR::pyOptions("useNumpy", TRUE)
+    PythonInR::pyImport("numpy", as='np')}
+  
+  # return error if we can't connect to python
+  if ( !PythonInR::pyIsConnected() )
+    stop('Python not connect error')
+  PythonInR::pyExec("import sklearn")
+  PythonInR::pyExec("ver = sklearn.__version__")
+  version <- PythonInR::pyGet("ver")
+  if(length(version)==0)
+    stop(paste0('You need sklearn for MLP - please add'))
+  if (version < '0.18.2')
+    stop(paste0('You need sklearn version 0.18.2 or greater for MLP - please update by',
+                ' typing: "conda update scikit-learn" into windows command prompt (make sure to restart R afterwards)'))
+  
   result <- list(model='fitMLP', 
                  param= split(expand.grid(size=size, 
                                           alpha=alpha,
@@ -61,16 +92,18 @@ fitMLP <- function(population, plpData, param, search='grid', quiet=F,
   }
   
   # connect to python if not connected
-  if ( !PythonInR::pyIsConnected() ){ 
+  if ( !PythonInR::pyIsConnected() || .Platform$OS.type=="unix"){ 
     PythonInR::pyConnect()
-    PythonInR::pyOptions("numpyAlias", "np")
-    PythonInR::pyOptions("useNumpy", TRUE)
-    PythonInR::pyImport("numpy", as='np')}
+}
   
   
   # return error if we can't connect to python
   if ( !PythonInR::pyIsConnected() )
     stop('Python not connect error')
+
+  PythonInR::pyOptions("numpyAlias", "np")
+  PythonInR::pyOptions("useNumpy", TRUE)
+  PythonInR::pyImport("numpy", as='np')
   
   start <- Sys.time()
   
@@ -114,7 +147,7 @@ fitMLP <- function(population, plpData, param, search='grid', quiet=F,
   covariateRef <- ff::as.ram(plpData$covariateRef)
   incs <- rep(1, nrow(covariateRef))
   covariateRef$included <- incs
-  covariateRef$value <- unlist(varImp)
+  covariateRef$covariateValue <- unlist(varImp)
   
     
   # select best model and remove the others  (!!!NEED TO EDIT THIS)

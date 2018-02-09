@@ -4,11 +4,11 @@
 \alias{plotDemographicSummary}
 \title{Plot the Observed vs. expected incidence, by age and gender}
 \usage{
-plotDemographicSummary(evaluation, type = "train", fileName = NULL)
+plotDemographicSummary(evaluation, type = "test", fileName = NULL)
 }
 \arguments{
 \item{evaluation}{A prediction object as generated using the
-\code{\link{RunPlp}} function.}
+\code{\link{runPlp}} function.}
 
 \item{type}{options: 'train' or test'}
 

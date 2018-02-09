@@ -4,11 +4,11 @@
 \alias{plotF1Measure}
 \title{Plot the F1 measure efficiency frontier using the sparse thresholdSummary data frame}
 \usage{
-plotF1Measure(evaluation, type = "train", fileName = NULL)
+plotF1Measure(evaluation, type = "test", fileName = NULL)
 }
 \arguments{
 \item{evaluation}{A prediction object as generated using the
-\code{\link{RunPlp}} function.}
+\code{\link{runPlp}} function.}
 
 \item{type}{options: 'train' or test'}
 

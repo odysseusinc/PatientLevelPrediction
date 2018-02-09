@@ -20,14 +20,18 @@
 #' @param nbfilters  The number of filters
 #' @param epochs     The number of epochs
 #' @param seed       A seed for the model
-#' @param time_window       A time window to get temporal data
-#'
+#' @param class_weight   The class weight used for imbalanced data: 
+#'                           0: Inverse ratio between positives and negatives
+#'                          -1: Focal loss
+#' @param cnn_type      It can be normal 'CNN', 'CNN_LSTM', CNN_MLF' with multiple kernels with different kernel size, 
+#'                      'CNN_MIX', 'ResNet' and 'CNN_MULTI'
+#' 
 #' @examples
 #' \dontrun{
 #' model.cnnTorch <- setCNNTorch()
 #' }
 #' @export
-setCNNTorch <- function(nbfilters=c(16, 32), epochs=c(20, 50), seed=0, time_window = 12){
+setCNNTorch <- function(nbfilters=c(16, 32), epochs=c(20, 50), seed=0, class_weight = 0, cnn_type = 'CNN'){
   
   # test python is available and the required dependancies are there:
   if (!PythonInR::pyIsConnected()){
@@ -38,16 +42,18 @@ setCNNTorch <- function(nbfilters=c(16, 32), epochs=c(20, 50), seed=0, time_wind
     }  
     )
   }
-  result <- list(model='fitCNNTorch', param= expand.grid(nbfilters=nbfilters,
-                                                         epochs=epochs, seed=ifelse(is.null(seed),'NULL', seed), time_window = time_window),
-                 name='CNN Torch')
+  result <- list(model='fitCNNTorch', param=split(expand.grid(nbfilters=nbfilters,
+                                            epochs=epochs, seed=ifelse(is.null(seed),'NULL', seed), 
+											class_weight = class_weight, cnn_type = cnn_type),
+											1:(length(nbfilters)*length(epochs)) ),
+                 					  name='CNN Torch')
   
   class(result) <- 'modelSettings' 
   
   return(result)
 }
 
-#' @export
+
 fitCNNTorch <- function(population, plpData, param, search='grid', quiet=F,
                         outcomeId, cohortId, ...){
   
@@ -61,10 +67,9 @@ fitCNNTorch <- function(population, plpData, param, search='grid', quiet=F,
   }
   
   # connect to python if not connected
-  if ( !PythonInR::pyIsConnected() ){ 
+  if ( !PythonInR::pyIsConnected() || .Platform$OS.type=="unix"){ 
     PythonInR::pyConnect()
   }
-
   # return error if we can't connect to python
   if ( !PythonInR::pyIsConnected() )
     stop('Python not connect error')
@@ -84,55 +89,33 @@ fitCNNTorch <- function(population, plpData, param, search='grid', quiet=F,
   
   # convert plpData in coo to python:
   covariates <- plpData$covariates
-  covariates$rowIdPython <- covariates$rowId # -1 to account for python/r index difference
+  covariates$rowIdPython <- covariates$rowId -1 #to account for python/r index difference
   PythonInR::pySet('covariates', as.matrix(covariates[,c('rowIdPython','covariateId','timeId', 'covariateValue')]))
   
-  covariateRef <- ff::as.ram(plpData$covariateRef)
-  inc <- 1:ncol(covariateRef)  
   # save the model to outLoc  TODO: make this an input or temp location?
   outLoc <- file.path(getwd(),'python_models')
   # clear the existing model pickles
   for(file in dir(outLoc))
     file.remove(file.path(outLoc,file))
-  
-  covariateRef <- ff::as.ram(plpData$covariateRef)
-  incs <- rep(1, nrow(covariateRef))
-  covariateRef$included <- incs
-  #covariateRef$value <- unlist(varImp)
-  all_auc <- c()
-  
-  for(i in 1:nrow(param)){
-    
-    # do inc-1 to go to python index as python starts at 0, R starts at 1
-    PythonInR::pySet('included', as.matrix(inc-1), 
-                     namespace = "__main__", useNumpy = TRUE)
-    
-    # then run standard python code
-    auc <- do.call(trainCNNTorch,list(epochs=as.character(param$epochs[i]), nbfilters = as.character(param$nbfilters[i]), 
-                                      seed = as.character(param$seed[i]), time_window = as.character(param$time_window[i]), train = TRUE))
-    
-    all_auc <- c(all_auc, auc)
-    writeLines(paste0('Model with settings: epochs: ',param$epochs[i], 
-                      'nbfilters: ', param$nbfilters[i], 'seed: ', param$seed[i], ' obtained AUC of ', auc))
-  }
-  
-  hyperSummary <- cbind(param, cv_auc=all_auc)
-  
-  # run model:
+
   outLoc <- file.path(getwd(),'python_models')
   PythonInR::pySet("modelOutput",outLoc)
+
+  # do cross validation to find hyperParameter
+  hyperParamSel <- lapply(param, function(x) do.call(trainCNNTorch, c(x, train=TRUE)  ))
+ 
+  hyperSummary <- cbind(do.call(rbind, param), unlist(hyperParamSel))
   
-  
-  # ToDo: I do not like this list creation
-  finalModel <- do.call(trainCNNTorch,list(epochs=as.character(param$epochs[which.max(all_auc)]), 
-                                           nbfilters=as.character(param$nbfilters[which.max(all_auc)]), 
-                                           seed = as.character(param$seed[which.max(all_auc)]), 
-                                           time_window = as.character(param$time_window[which.max(all_auc)]),
-                                           train = FALSE))
-  
+  #now train the final model and return coef
+  bestInd <- which.max(abs(unlist(hyperParamSel)-0.5))[1]
+  finalModel <- do.call(trainCNNTorch, c(param[[bestInd]], train=FALSE))
+
+  covariateRef <- ff::as.ram(plpData$covariateRef)
+  incs <- rep(1, nrow(covariateRef)) 
+  covariateRef$included <- incs
   
   modelTrained <- file.path(outLoc) 
-  param.best <- NULL
+  param.best <- param[[bestInd]]
   
   comp <- start-Sys.time()
   
@@ -157,19 +140,36 @@ fitCNNTorch <- function(population, plpData, param, search='grid', quiet=F,
 }
 
 
-trainCNNTorch <- function(epochs=50, nbfilters = 16, seed=0, time_window = 12, train=TRUE){
+trainCNNTorch <- function(epochs=50, nbfilters = 16, seed=0, class_weight= 0, cnn_type = 'CNN', train=TRUE){
   #PythonInR::pyExec(paste0("size = ",size))
   PythonInR::pyExec(paste0("epochs = ",epochs))
   PythonInR::pyExec(paste0("nbfilters = ",nbfilters))
   PythonInR::pyExec(paste0("seed = ",seed))
-  PythonInR::pyExec(paste0("time_window = ",time_window))
-  PythonInR::pyExec("model_type = 'CNN'")
+  #PythonInR::pyExec(paste0("time_window = ",time_window))
+  PythonInR::pyExec(paste0("class_weight = ",class_weight))
+  if (cnn_type == 'CNN'){
+    PythonInR::pyExec("model_type = 'CNN'")
+  } else if (cnn_type == 'CNN_LSTM'){
+    PythonInR::pyExec("model_type = 'CNN_LSTM'")
+  }
+  else if (cnn_type == 'CNN_MLF'){
+    PythonInR::pyExec("model_type = 'CNN_MLF'")
+  }
+  else if (cnn_type == 'CNN_MIX'){
+    PythonInR::pyExec("model_type = 'CNN_MIX'")
+  } else if (cnn_type == 'CNN_MULTI'){
+    PythonInR::pyExec("model_type = 'CNN_MULTI'")
+  } else if (cnn_type == 'ResNet'){
+    PythonInR::pyExec("model_type = 'ResNet'")
+  }
+  #PythonInR::pyExec(paste0("model_type = ",cnn_type))
   if(train)
     PythonInR::pyExec("train = True")
   if(!train)
     PythonInR::pyExec("train = False")
-  
-  # then run standard python code
+  python_dir <- system.file(package='PatientLevelPrediction','python')
+  PythonInR::pySet("python_dir", python_dir)
+  # then run standard python code #learningcurve.py #deepTorch.py
   PythonInR::pyExecfile(system.file(package='PatientLevelPrediction','python','deepTorch.py'))
   
   if(train){

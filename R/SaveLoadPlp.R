@@ -89,9 +89,12 @@
 #'                                     date for a person to be included in the at risk cohort. Note that
 #'                                     this is typically done in the \code{createStudyPopulation} function,
 #'                                     but can already be done here for efficiency reasons.
+#' @param sampleSize                   If not NULL, only this number of people will be sampled from the target population (Default NULL)
+#' 
 #' @param covariateSettings            An object of type \code{covariateSettings} as created using the
 #'                                     \code{createCovariateSettings} function in the
 #'                                     \code{FeatureExtraction} package.
+#' @param baseUrl                      If extracting cohorts from atlas enter atlas url to extract cohort creation details
 #'
 #' @return
 #' Returns an object of type \code{plpData}, containing information on the cohorts, their
@@ -109,36 +112,48 @@
 #'
 #' @export
 getPlpData <- function(connectionDetails,
-                                  cdmDatabaseSchema,
-                                  oracleTempSchema = cdmDatabaseSchema,
-                                  cohortId,
-                                  outcomeIds,
-                                  studyStartDate = "",
-                                  studyEndDate = "",
-                                  cohortDatabaseSchema = cdmDatabaseSchema,
-                                  cohortTable = "cohort",
-                                  outcomeDatabaseSchema = cdmDatabaseSchema,
-                                  outcomeTable = "cohort",
-                                  cdmVersion = "5",
-                                  excludeDrugsFromCovariates = F, #ToDo: rename to excludeFromFeatures
-                                  firstExposureOnly = FALSE,
-                                  washoutPeriod = 0,
-                                  temporal = F,
-                                  covariateSettings) {
+                       cdmDatabaseSchema,
+                       oracleTempSchema = cdmDatabaseSchema,
+                       cohortId,
+                       outcomeIds,
+                       studyStartDate = "",
+                       studyEndDate = "",
+                       cohortDatabaseSchema = cdmDatabaseSchema,
+                       cohortTable = "cohort",
+                       outcomeDatabaseSchema = cdmDatabaseSchema,
+                       outcomeTable = "cohort",
+                       cdmVersion = "5",
+                       excludeDrugsFromCovariates = F, #ToDo: rename to excludeFromFeatures
+                       firstExposureOnly = FALSE,
+                       washoutPeriod = 0,
+                       sampleSize = NULL,
+                       covariateSettings,
+                       baseUrl = NULL) {
   if (studyStartDate != "" && regexpr("^[12][0-9]{3}[01][0-9][0-3][0-9]$", studyStartDate) == -1)
     stop("Study start date must have format YYYYMMDD")
   if (studyEndDate != "" && regexpr("^[12][0-9]{3}[01][0-9][0-3][0-9]$", studyEndDate) == -1)
     stop("Study end date must have format YYYYMMDD")
+  if(!is.null(sampleSize)){
+    if(class(sampleSize)!='numeric')
+      stop("sampleSize must be numeric")
+  }
+  
+  if(is.null(cohortId))
+    stop('User must input cohortId')
+  if(is.null(outcomeIds))
+    stop('User must input outcomeIds')
   #ToDo: add other checks the inputs are valid
   
   connection <- DatabaseConnector::connect(connectionDetails)
+  dbms <- connectionDetails$dbms
+
   
   if (excludeDrugsFromCovariates) { #ToDo: rename to excludeFromFeatures
     sql <- "SELECT descendant_concept_id FROM @cdm_database_schema.concept_ancestor WHERE ancestor_concept_id IN (@cohort_id)"
     sql <- SqlRender::renderSql(sql,
                                 cdm_database_schema = cdmDatabaseSchema,
                                 cohort_id = cohortId)$sql
-    sql <- SqlRender::translateSql(sql, targetDialect = connectionDetails$dbms)$sql
+    sql <- SqlRender::translateSql(sql, targetDialect = dbms)$sql
     conceptIds <- DatabaseConnector::querySql(connection, sql)
     names(conceptIds) <- SqlRender::snakeCaseToCamelCase(names(conceptIds))
     conceptIds <- conceptIds$descendantConceptId
@@ -148,9 +163,10 @@ getPlpData <- function(connectionDetails,
   }
   
   writeLines("\nConstructing the at risk cohort")
+  if(!is.null(sampleSize))  writeLines(paste("\n Sampling ",sampleSize, " people"))
   renderedSql <- SqlRender::loadRenderTranslateSql("CreateCohorts.sql",
                                                    packageName = "PatientLevelPrediction",
-                                                   dbms = connectionDetails$dbms,
+                                                   dbms = dbms,
                                                    oracleTempSchema = oracleTempSchema,
                                                    cdm_database_schema = cdmDatabaseSchema,
                                                    cohort_database_schema = cohortDatabaseSchema,
@@ -160,14 +176,17 @@ getPlpData <- function(connectionDetails,
                                                    study_start_date = studyStartDate,
                                                    study_end_date = studyEndDate,
                                                    first_only = firstExposureOnly,
-                                                   washout_period = washoutPeriod)
+                                                   washout_period = washoutPeriod,
+                                                   use_sample = !is.null(sampleSize),
+                                                   sample_number=sampleSize
+  )
   DatabaseConnector::executeSql(connection, renderedSql)
   
   writeLines("Fetching cohorts from server")
   start <- Sys.time()
   cohortSql <- SqlRender::loadRenderTranslateSql("GetCohorts.sql",
                                                  packageName = "PatientLevelPrediction",
-                                                 dbms = connectionDetails$dbms,
+                                                 dbms = dbms,
                                                  oracleTempSchema = oracleTempSchema,
                                                  cdm_version = cdmVersion)
   cohorts <- DatabaseConnector::querySql(connection, cohortSql)
@@ -176,38 +195,26 @@ getPlpData <- function(connectionDetails,
                    studyStartDate = studyStartDate,
                    studyEndDate = studyEndDate)
   
+  if(nrow(cohorts)==0)
+    stop('Target population is empty')
 
   delta <- Sys.time() - start
   writeLines(paste("Loading cohorts took", signif(delta, 3), attr(delta, "units")))
   
   #covariateSettings$useCovariateCohortIdIs1 <- TRUE
-  if (temporal) {
-    writeLines("Fetching temporal covariates from server")
-    covariateData <- FeatureExtraction::getDbTemporalCovariateData(connection = connection,
-                                                           oracleTempSchema = oracleTempSchema,
-                                                           cdmDatabaseSchema = cdmDatabaseSchema,
-                                                           cdmVersion = cdmVersion,
-                                                           cohortTempTable = "#cohort_person",
-                                                           rowIdField = "row_id",
-                                                           covariateSettings = covariateSettings)  
-    
-  } else {
-    writeLines("Fetching covariates from server")
-    covariateData <- FeatureExtraction::getDbCovariateData(connection = connection,
-                                                           oracleTempSchema = oracleTempSchema,
-                                                           cdmDatabaseSchema = cdmDatabaseSchema,
-                                                           cdmVersion = cdmVersion,
-                                                           cohortTable = "#cohort_person",
-                                                           cohortTableIsTemp = TRUE,
-                                                           rowIdField = "row_id",
-                                                           covariateSettings = covariateSettings)    
-  }
-
+  covariateData <- FeatureExtraction::getDbCovariateData(connection = connection,
+                                                         oracleTempSchema = oracleTempSchema,
+                                                         cdmDatabaseSchema = cdmDatabaseSchema,
+                                                         cdmVersion = cdmVersion,
+                                                         cohortTable = "#cohort_person",
+                                                         cohortTableIsTemp = TRUE,
+                                                         rowIdField = "row_id",
+                                                         covariateSettings = covariateSettings)
   writeLines("Fetching outcomes from server")
   start <- Sys.time()
   outcomeSql <- SqlRender::loadRenderTranslateSql("GetOutcomes.sql",
                                                   packageName = "PatientLevelPrediction",
-                                                  dbms = connectionDetails$dbms,
+                                                  dbms = dbms,
                                                   oracleTempSchema = oracleTempSchema,
                                                   cdm_database_schema = cdmDatabaseSchema,
                                                   outcome_database_schema = outcomeDatabaseSchema,
@@ -218,8 +225,10 @@ getPlpData <- function(connectionDetails,
   colnames(outcomes) <- SqlRender::snakeCaseToCamelCase(colnames(outcomes))
   metaData.outcome <- data.frame(outcomeIds =outcomeIds)
   attr(outcomes, "metaData") <- metaData.outcome
+  if(nrow(outcomes)==0)
+    stop('No Outcomes')
   
-  metaData.cohort$attrition <- getCounts(cohorts,nrow(outcomes), "Original cohorts")
+  metaData.cohort$attrition <- getCounts2(cohorts,outcomes, "Original cohorts")
   attr(cohorts, "metaData") <- metaData.cohort
   
   delta <- Sys.time() - start
@@ -228,14 +237,15 @@ getPlpData <- function(connectionDetails,
   # Remove temp tables:
   renderedSql <- SqlRender::loadRenderTranslateSql("RemoveCohortTempTables.sql",
                                                    packageName = "PatientLevelPrediction",
-                                                   dbms = connectionDetails$dbms,
+                                                   dbms = dbms,
                                                    oracleTempSchema = oracleTempSchema)
   DatabaseConnector::executeSql(connection, renderedSql, progressBar = FALSE, reportOverallTime = FALSE)
-  RJDBC::dbDisconnect(connection)
+  DatabaseConnector::disconnect(connection)
   
   metaData <- covariateData$metaData
   metaData$call <- match.call()
   metaData$call$connectionDetails = connectionDetails
+  metaData$call$connection = NULL
   metaData$call$cdmDatabaseSchema = cdmDatabaseSchema
   metaData$call$oracleTempSchema = oracleTempSchema
   metaData$call$cohortId = cohortId
@@ -251,26 +261,81 @@ getPlpData <- function(connectionDetails,
   metaData$call$firstExposureOnly = firstExposureOnly
   metaData$call$washoutPeriod = washoutPeriod
   metaData$call$covariateSettings= covariateSettings
-
-  if (temporal) {
-    result <- list(cohorts = cohorts,
-                   outcomes = outcomes,
-                   covariates = covariateData$covariates,
-                   covariateRef = covariateData$covariateRef,
-                   timePeriods = covariateData$timePeriods,
-                   metaData = metaData)
-  } else {
-    result <- list(cohorts = cohorts,
-                   outcomes = outcomes,
-                   covariates = covariateData$covariates,
-                   covariateRef = covariateData$covariateRef,
-                   metaData = metaData)   
+  
+  
+  # code to extract cohort if selected
+  if(!is.null(baseUrl)){
+    cohortCode <- saveCirceDefinition(cohortId, 'Target Cohort', baseUrl)
+    outcomeCode <- list()
+    length(outcomeCode) <- length(outcomeIds)
+    i <- 0
+    for(outcomeId in outcomeIds){
+      i <- i+1
+      outcomeCode[[i]] <- saveCirceDefinition(outcomeId, paste0('Outcome ',i, ' Cohort'), baseUrl)
+    }
+    metaData$cohortCreate <- list(targetCohort = cohortCode ,
+                         outcomeCohorts = outcomeCode)
   }
 
+  result <- list(cohorts = cohorts,
+                 outcomes = outcomes,
+                 covariates = covariateData$covariates,
+                 covariateRef = covariateData$covariateRef,
+                 metaData = metaData)
   
   class(result) <- "plpData"
   return(result)
 }
+
+
+
+
+#' Get the covaridate data for a cohort table
+#' @description
+#' This function executes some SQL to extract covaraite data for a cohort table
+#'
+#' @details
+#'
+#' @param connection                   Can also use an existing connection rather than the connectionDetails
+#' @param cdmDatabaseSchema            The name of the database schema that contains the OMOP CDM
+#'                                     instance.  Requires read permissions to this database. On SQL
+#'                                     Server, this should specifiy both the database and the schema,
+#'                                     so for example 'cdm_instance.dbo'.
+#' @param oracleTempSchema             For Oracle only: the name of the database schema where you want
+#'                                     all temporary tables to be managed. Requires create/insert
+#'                                     permissions to this database.
+#' @param cohortTable                  The temp table containing the cohort of people
+#' @param cdmVersion                   The version of the CDM (default 5)
+#' @param covariateSettings            An object of type \code{covariateSettings} as created using the
+#'                                     \code{createCovariateSettings} function in the
+#'                                     \code{FeatureExtraction} package.
+#'
+#' @return
+#' Returns the covariates for the people in the temp table
+#' @export
+getCovariateData <- function(connection,
+                       cdmDatabaseSchema,
+                       oracleTempSchema = cdmDatabaseSchema,
+                       cohortTable = "#cohort_person",
+                       cdmVersion = 5,
+                       covariateSettings) {
+  
+  if(missing(connection)){
+    stop('Need to enter an existing connection')
+  } 
+  
+  writeLines("Extracting covariate data")
+  covariateData <- FeatureExtraction::getDbCovariateData(connection = connection,
+                                                         oracleTempSchema = oracleTempSchema,
+                                                         cdmDatabaseSchema = cdmDatabaseSchema,
+                                                         cdmVersion = cdmVersion,
+                                                         cohortTable = cohortTable,
+                                                         cohortTableIsTemp = TRUE,
+                                                         rowIdField = "row_id",
+                                                         covariateSettings = covariateSettings)
+  return(covariateData$covariates)
+}
+
 
 #' Save the cohort data to folder
 #'
@@ -300,8 +365,12 @@ savePlpData <- function(plpData, file, envir=NULL) {
   
   # save the actual values in the metaData
   # TODO - only do this if exists in parent or environ
+  if(is.null(plpData$metaData$call$sampleSize)){  # fixed a bug when sampleSize is NULL
+    plpData$metaData$call$sampleSize <- 'NULL'
+  }
   for(i in 2:length(plpData$metaData$call)){
-    plpData$metaData$call[[i]] <- eval(plpData$metaData$call[[i]], envir = envir)
+    if(!is.null(plpData$metaData$call[[i]]))
+      plpData$metaData$call[[i]] <- eval(plpData$metaData$call[[i]], envir = envir)
   }
   
   if('ffdf'%in%class(plpData$covariates)){
@@ -513,7 +582,7 @@ insertDbPopulation <- function(population,
     sql <- SqlRender::renderSql(sql,
                                 table = paste(cohortDatabaseSchema, cohortTable, sep = "."),
                                 cohort_ids = cohortIds)$sql
-    sql <- SqlRender::translateSql(sql, targetDialect = connectionDetails$dbms)$sql
+    sql <- SqlRender::translateSql(sql, targetDialect = dbms)$sql
     DatabaseConnector::executeSql(connection = connection, sql = sql, progressBar = FALSE, reportOverallTime = FALSE)
   }
   DatabaseConnector::insertTable(connection = connection,
@@ -523,7 +592,7 @@ insertDbPopulation <- function(population,
                                  createTable = createTable,
                                  tempTable = FALSE,
                                  oracleTempSchema = NULL)
-  RJDBC::dbDisconnect(connection)
+  DatabaseConnector::disconnect(connection)
   delta <- Sys.time() - start
   writeLines(paste("Inserting rows took", signif(delta, 3), attr(delta, "units")))
   invisible(TRUE)
@@ -535,7 +604,7 @@ insertDbPopulation <- function(population,
 #' @details
 #' Saves the plp model to a user specificed folder
 #'
-#' @param plpModel                   A trained classifier returned by running \code{RunPlp()$model}
+#' @param plpModel                   A trained classifier returned by running \code{runPlp()$model}
 #' @param dirPath                  A location to save the model to
 #'
 #' @export
@@ -557,11 +626,28 @@ savePlpModel <- function(plpModel, dirPath){
       dir.create(file.path(dirPath,'python_model'))
     for(file in dir(plpModel$model)){
       file.copy(file.path(plpModel$model,file), 
-                file.path(dirPath,'python_model'),  overwrite=TRUE, recursive = FALSE,
+                file.path(dirPath,'python_model'), overwrite=TRUE,  recursive = FALSE,
                 copy.mode = TRUE, copy.date = FALSE)
     }
     
     plpModel$model <- file.path(dirPath,'python_model')
+    plpModel$predict <- createTransform(plpModel)
+  }
+  #============================================================
+  
+  #==================================================================
+  # if knn then move model
+  #==================================================================
+  if(attr(plpModel, 'type') =='knn'){
+    if(!dir.exists(file.path(dirPath,'knn_model')))
+      dir.create(file.path(dirPath,'knn_model'))
+    for(file in dir(plpModel$model)){
+      file.copy(file.path(plpModel$model,file), 
+                file.path(dirPath,'knn_model'), overwrite=TRUE,  recursive = FALSE,
+                copy.mode = TRUE, copy.date = FALSE)
+    }
+    
+    plpModel$model <- file.path(dirPath,'knn_model')
     plpModel$predict <- createTransform(plpModel)
   }
   #============================================================
@@ -593,6 +679,9 @@ savePlpModel <- function(plpModel, dirPath){
   saveRDS(plpModel$populationSettings, file = file.path(dirPath, "populationSettings.rds"))
   saveRDS(plpModel$trainingTime, file = file.path(dirPath,  "trainingTime.rds"))
   saveRDS(plpModel$varImp, file = file.path(dirPath,  "varImp.rds"))
+  saveRDS(plpModel$dense, file = file.path(dirPath,  "dense.rds"))
+  saveRDS(plpModel$cohortId, file = file.path(dirPath,  "cohortId.rds"))
+  saveRDS(plpModel$outcomeId, file = file.path(dirPath,  "outcomeId.rds"))
   
   
   attributes <- list(type=attr(plpModel, 'type'), predictionType=attr(plpModel, 'predictionType') )
@@ -618,6 +707,14 @@ loadPlpModel <- function(dirPath) {
   
   hyperParamSearch <- tryCatch(readRDS(file.path(dirPath, "hyperParamSearch.rds")),
                                error=function(e) NULL)
+  # add in these as they got dropped
+  outcomeId <- tryCatch(readRDS(file.path(dirPath, "outcomeId.rds")),
+                        error=function(e) NULL)
+  cohortId <- tryCatch(readRDS(file.path(dirPath, "cohortId.rds")),
+                        error=function(e) NULL)  
+  dense <- tryCatch(readRDS(file.path(dirPath, "dense.rds")),
+                        error=function(e) NULL)  
+  
   
   result <- list(model = readRDS(file.path(dirPath, "model.rds")),
                  hyperParamSearch = hyperParamSearch,
@@ -628,13 +725,24 @@ loadPlpModel <- function(dirPath) {
                  metaData = readRDS(file.path(dirPath, "metaData.rds")),
                  populationSettings= readRDS(file.path(dirPath, "populationSettings.rds")),
                  trainingTime = readRDS(file.path(dirPath, "trainingTime.rds")),
-                 varImp = readRDS(file.path(dirPath, "varImp.rds"))
-                 
-  )
+                 varImp = readRDS(file.path(dirPath, "varImp.rds")),
+                 dense = dense,
+                 cohortId= cohortId,
+                 outcomeId = outcomeId)
+
+  #attributes <- readRDS(file.path(dirPath, "attributes.rds"))
   attributes <- readRDS(file.path(dirPath, "attributes.rds"))
   attr(result, 'type') <- attributes$type
   attr(result, 'predictionType') <- attributes$predictionType
   class(result) <- "plpModel"
+  
+  # if python update the location
+  if(attributes$type=='python'){
+    result$model <- file.path(dirPath,'python_model')
+    result$predict <- createTransform(result)
+  }
+  # if knn update the locaiton - TODO !!!!!!!!!!!!!!
+  
   
   return(result)
 }
@@ -673,13 +781,13 @@ loadPrediction <- function(dirPath){
 #' @details
 #' Saves the result from runPlp into the location directory
 #'
-#' @param result                       The result of running RunPlp()
+#' @param result                      The result of running runPlp()
 #' @param dirPath                     The directory to save the csv
 #' 
 #' @export
 savePlpResult <- function(result, dirPath){
   if (missing(result))
-    stop("Must specify RunPlp output")
+    stop("Must specify runPlp output")
   if (missing(dirPath))
     stop("Must specify directory location")
   #if (class(plpModel) != "plpModel")
@@ -839,3 +947,31 @@ writeOutput <- function(prediction,
   
   
 }
+
+# Insert cohort definitions into package
+saveCirceDefinition <- function (definitionId, name = NULL,
+                                            baseUrl = "https://enter_address")
+{
+  url <- paste(baseUrl, "cohortdefinition", definitionId, sep = "/")
+  json <- RCurl::getURL(url, .opts = list(ssl.verifypeer=FALSE))
+  parsedJson <- RJSONIO::fromJSON(json)
+  if (is.null(name)) {
+    name <- parsedJson$name
+  }
+  expression <- parsedJson$expression
+  parsedExpression <- RJSONIO::fromJSON(parsedJson$expression)
+  jsonBody <- RJSONIO::toJSON(list(expression = parsedExpression),
+                              digits = 23)
+  httpheader <- c(Accept = "application/json; charset=UTF-8",
+                  `Content-Type` = "application/json")
+  url <- paste(baseUrl, "cohortdefinition", "sql", sep = "/")
+  cohortSqlJson <- RCurl::postForm(url, .opts = list(httpheader = httpheader,
+                                                     postfields = jsonBody,
+                                                     ssl.verifypeer=FALSE))
+  sql <- RJSONIO::fromJSON(cohortSqlJson)
+
+  return(list(json=expression,
+              sql=sql))
+}
+
+

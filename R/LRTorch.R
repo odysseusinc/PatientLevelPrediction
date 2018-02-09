@@ -20,13 +20,16 @@
 #' @param w_decay      The l2 regularisation
 #' @param seed       A seed for the model 
 #' @param epochs     The number of epochs
-#'
+#' @param class_weight   The class weight used for imbalanced data: 
+#'                           0: Inverse ratio between positives and negatives
+#'                          -1: Focal loss
+#' @param autoencoder     First learn stakced autoencoder for input features, then train MLP on the encoded features.
 #' @examples
 #' \dontrun{
 #' model.lrTorch <- setLRTorch()
 #' }
 #' @export
-setLRTorch <- function(w_decay=c(0.003, 0.005, 0.007), epochs=c(20, 50, 100)){
+setLRTorch <- function(w_decay=c(0.0005, 0.005), epochs=c(20, 50, 100), seed=NULL, class_weight = 0, autoencoder = FALSE){
   
   # test python is available and the required dependancies are there:
   if (!PythonInR::pyIsConnected()){
@@ -37,9 +40,10 @@ setLRTorch <- function(w_decay=c(0.003, 0.005, 0.007), epochs=c(20, 50, 100)){
     }  
     )
   }
-  result <- list(model='fitLRTorch', param= expand.grid(w_decay=w_decay,
-                                                         epochs=epochs),
-                 name='LR Torch')
+  result <- list(model='fitLRTorch', param=split(expand.grid(w_decay=w_decay, epochs=epochs, 
+                                           seed=ifelse(is.null(seed),'NULL', seed),  class_weight = class_weight, autoencoder = autoencoder),
+									       1:(length(w_decay)*length(epochs)) ),
+                                     name='LR Torch')
   
   #result <- list(model='fitLRTorch', 
   #               param= c(size,epochs,seed),
@@ -50,7 +54,6 @@ setLRTorch <- function(w_decay=c(0.003, 0.005, 0.007), epochs=c(20, 50, 100)){
   return(result)
 }
 
-#' @export
 fitLRTorch <- function(population, plpData, param, search='grid', quiet=F,
                         outcomeId, cohortId, ...){
   
@@ -64,7 +67,7 @@ fitLRTorch <- function(population, plpData, param, search='grid', quiet=F,
   }
   
   # connect to python if not connected
-  if ( !PythonInR::pyIsConnected() ){ 
+  if ( !PythonInR::pyIsConnected() || .Platform$OS.type=="unix"){ 
     PythonInR::pyConnect()
   }
   
@@ -84,67 +87,34 @@ fitLRTorch <- function(population, plpData, param, search='grid', quiet=F,
   
   # convert plpData in coo to python:
   x <- toSparsePython(plpData,population, map=NULL)
-  covariateRef <- ff::as.ram(plpData$covariateRef)
-  inc <- 1:ncol(covariateRef)  
+
   # save the model to outLoc  TODO: make this an input or temp location?
   outLoc <- file.path(getwd(),'python_models')
   # clear the existing model pickles
   for(file in dir(outLoc))
     file.remove(file.path(outLoc,file))
   
-  covariateRef <- ff::as.ram(plpData$covariateRef)
-  incs <- rep(1, nrow(covariateRef))
-  covariateRef$included <- incs
   #covariateRef$value <- unlist(varImp)
-  all_auc <- c()
-  
-  for(i in 1:nrow(param)){
-    # set variable params - do loop  
-    #PythonInR::pyExec(paste0("size = int(",param$size[i],")"))
-    #PythonInR::pyExec(paste0("w_decay = int(",param$w_decay[i],")"))
-    #PythonInR::pyExec(paste0("epochs = int(",param$epochs[i],")"))
-    #PythonInR::pySet("epochs",param$epochs[i])
-    #PythonInR::pySet("train", FALSE)
-    ##PythonInR::pySet("dataLocation" ,plpData$covariates)
-    
-    # do inc-1 to go to python index as python starts at 0, R starts at 1
-    ##PythonInR::pyImport("numpy", as="np")
-    PythonInR::pySet('included', as.matrix(inc-1), 
-                     namespace = "__main__", useNumpy = TRUE)
-    
-    #mapping = sys.argv[5] # this contains column selection/ordering 
-    #missing = sys.argv[6] # this contains missing
-    
-    # then run standard python code
-    #PythonInR::pyExecfile(system.file(package='PatientLevelPrediction','python','mlp_torch.py'))
-    auc <- do.call(trainLRTorch,list(epochs=as.character(param$epochs[i]), w_decay = as.character(param$w_decay[i]), 
-                                      train = TRUE))
-    
-    # close python
-    
-    ##pred <- read.csv(file.path(outLoc,i,'prediction.txt'), header=F)
-    ##colnames(pred) <- c('rowId','outcomeCount','indexes', 'value')
-    ##auc <- PatientLevelPrediction::computeAuc(pred)
-    all_auc <- c(all_auc, auc)
-    writeLines(paste0('Model with settings: epochs: ',param$epochs[i], 
-                      'w_decay: ', param$w_decay[i], ' obtained AUC of ', auc))
-  }
-  
-  hyperSummary <- cbind(param, cv_auc=all_auc)
-  
   # run model:
   outLoc <- file.path(getwd(),'python_models')
   PythonInR::pySet("modelOutput",outLoc)
+
+  # do cross validation to find hyperParameter
+  hyperParamSel <- lapply(param, function(x) do.call(trainLRTorch, c(x, train=TRUE)  ))
+
   
+  hyperSummary <- cbind(do.call(rbind, param), unlist(hyperParamSel))
   
-  # ToDo: I do not like this list creation
-  finalModel <- do.call(trainLRTorch,list(epochs=as.character(param$epochs[which.max(all_auc)]), 
-                                           w_decay=as.character(param$w_decay[which.max(all_auc)]), 
-                                           train = FALSE))
-  
+  #now train the final model
+  bestInd <- which.max(abs(unlist(hyperParamSel)-0.5))[1]
+  finalModel <- do.call(trainLRTorch, c(param[[bestInd]], train=FALSE))
+
+  covariateRef <- ff::as.ram(plpData$covariateRef)
+  incs <- rep(1, nrow(covariateRef)) 
+  covariateRef$included <- incs
   
   modelTrained <- file.path(outLoc) 
-  param.best <- NULL
+  param.best <- param[[bestInd]]
   
   comp <- start-Sys.time()
   
@@ -169,11 +139,19 @@ fitLRTorch <- function(population, plpData, param, search='grid', quiet=F,
 }
 
 
-trainLRTorch <- function(epochs=100, w_decay = 0.001, seed=0, train=TRUE){
+trainLRTorch <- function(epochs=100, w_decay = 0.001, seed=0, class_weight = 0, train=TRUE, autoencoder = FALSE){
   #PythonInR::pyExec(paste0("size = ",size))
   PythonInR::pyExec(paste0("epochs = ",epochs))
   PythonInR::pyExec(paste0("w_decay = ",w_decay))
+  PythonInR::pyExec(paste0("class_weight = ",class_weight))
   PythonInR::pyExec("model_type = 'LogisticRegression'")
+  python_dir <- system.file(package='PatientLevelPrediction','python')
+  PythonInR::pySet("python_dir", python_dir)
+  if (autoencoder){
+    PythonInR::pyExec("autoencoder = True")
+    } else {
+    PythonInR::pyExec("autoencoder = False")
+    }
   if(train)
     PythonInR::pyExec("train = True")
   if(!train)

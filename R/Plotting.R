@@ -22,7 +22,7 @@
 #' @details
 #' Create a directory with all the plots
 #'
-#' @param result                Object returned by the RunPlp() function
+#' @param result                Object returned by the runPlp() function
 #' @param filename              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
 #'                              supported file formats.
@@ -123,7 +123,7 @@ plotRoc <- function(prediction, fileName = NULL) {
 #' Create a plot showing the Receiver Operator Characteristics (ROC) curve.
 #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -134,7 +134,7 @@ plotRoc <- function(prediction, fileName = NULL) {
 #' format.
 #'
 #' @export
-plotSparseRoc <- function(evaluation,type='train', fileName=NULL){
+plotSparseRoc <- function(evaluation,type='test', fileName=NULL){
   ind <- evaluation$thresholdSummary$Eval==type
   
   x<- evaluation$thresholdSummary[ind,c('falsePositiveRate','sensitivity')]
@@ -166,7 +166,7 @@ plotSparseRoc <- function(evaluation,type='train', fileName=NULL){
 #' Create a plot showing the predicted probability density function, showing prediction overlap between true and false cases
 #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -177,7 +177,7 @@ plotSparseRoc <- function(evaluation,type='train', fileName=NULL){
 #' format.
 #'
 #' @export
-plotPredictedPDF <- function(evaluation, type='train', fileName=NULL){
+plotPredictedPDF <- function(evaluation, type='test', fileName=NULL){
   ind <- evaluation$thresholdSummary$Eval==type
   
   x<- evaluation$thresholdSummary[ind,c('predictionThreshold','truePositiveCount','trueNegativeCount',
@@ -229,7 +229,7 @@ plotPredictedPDF <- function(evaluation, type='train', fileName=NULL){
 #' Create a plot showing the preference score probability density function, showing prediction overlap between true and false cases
 #' #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -240,7 +240,7 @@ plotPredictedPDF <- function(evaluation, type='train', fileName=NULL){
 #' format.
 #'
 #' @export
-plotPreferencePDF <- function(evaluation, type='train', fileName=NULL){
+plotPreferencePDF <- function(evaluation, type='test', fileName=NULL){
   ind <- evaluation$thresholdSummary$Eval==type
   
   x<- evaluation$thresholdSummary[ind,c('preferenceThreshold','truePositiveCount','trueNegativeCount',
@@ -292,7 +292,7 @@ plotPreferencePDF <- function(evaluation, type='train', fileName=NULL){
 #' Create a plot showing the precision-recall curve using the sparse thresholdSummary data frame
 #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -303,7 +303,7 @@ plotPreferencePDF <- function(evaluation, type='train', fileName=NULL){
 #' format.
 #'
 #' @export
-plotPrecisionRecall <- function(evaluation, type='train', fileName=NULL){
+plotPrecisionRecall <- function(evaluation, type='test', fileName=NULL){
   ind <- evaluation$thresholdSummary$Eval==type
   
   x<- evaluation$thresholdSummary[ind,c('positivePredictiveValue', 'sensitivity')]
@@ -327,7 +327,7 @@ plotPrecisionRecall <- function(evaluation, type='train', fileName=NULL){
 #' Create a plot showing the F1 measure efficiency frontier using the sparse thresholdSummary data frame
 #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -338,7 +338,7 @@ plotPrecisionRecall <- function(evaluation, type='train', fileName=NULL){
 #' format.
 #'
 #' @export
-plotF1Measure <- function(evaluation,type='train', fileName=NULL){
+plotF1Measure <- function(evaluation,type='test', fileName=NULL){
   ind <- evaluation$thresholdSummary$Eval==type
   
   x<- evaluation$thresholdSummary[ind,c('predictionThreshold', 'f1Score')]
@@ -366,7 +366,7 @@ plotF1Measure <- function(evaluation,type='train', fileName=NULL){
 #' Create a plot showing the Observed vs. expected incidence, by age and gender
 #' #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -377,18 +377,32 @@ plotF1Measure <- function(evaluation,type='train', fileName=NULL){
 #' format.
 #'
 #' @export
-plotDemographicSummary <- function(evaluation, type='train', fileName=NULL){
+plotDemographicSummary <- function(evaluation, type='test', fileName=NULL){
   if (!all(is.na(evaluation$demographicSummary$averagePredictedProbability))){
     ind <- evaluation$demographicSummary$Eval==type
-    x<- evaluation$demographicSummary[ind,c('ageGroup','genGroup','averagePredictedProbability',
+    x<- evaluation$demographicSummary[ind,colnames(evaluation$demographicSummary)%in%c('ageGroup','genGroup','averagePredictedProbability',
                                             'PersonCountAtRisk', 'PersonCountWithOutcome')]
 
     x$observed <- x$PersonCountWithOutcome/x$PersonCountAtRisk
-    x <- x[c('ageGroup','genGroup','averagePredictedProbability','observed')]
+    
+    
+    x <- x[,colnames(x)%in%c('ageGroup','genGroup','averagePredictedProbability','observed')]
+    
+    # if age or gender missing add 
+    if(sum(colnames(x)=='ageGroup')==1 && sum(colnames(x)=='genGroup')==0  ){
+      x$genGroup = rep('Non', nrow(x))
+      evaluation$demographicSummary$genGroup = rep('Non', nrow(evaluation$demographicSummary))
+    } 
+    if(sum(colnames(x)=='ageGroup')==0 && sum(colnames(x)=='genGroup')==1  ){
+      x$ageGroup = rep('-1', nrow(x))
+      evaluation$demographicSummary$ageGroup = rep('-1', nrow(evaluation$demographicSummary))
+      
+    }
+
     x <- reshape2::melt(x, id.vars=c('ageGroup','genGroup'))
     
     # 1.96*StDevPredictedProbability
-    ci <- evaluation$demographicSummary[,c('ageGroup','genGroup','averagePredictedProbability','StDevPredictedProbability')]
+    ci <- evaluation$demographicSummary[,colnames(evaluation$demographicSummary)%in%c('ageGroup','genGroup','averagePredictedProbability','StDevPredictedProbability')]
     ci$StDevPredictedProbability[is.na(ci$StDevPredictedProbability)] <- 1
     ci$lower <- ci$averagePredictedProbability-1.96*ci$StDevPredictedProbability
     ci$lower[ci$lower <0] <- 0
@@ -399,7 +413,7 @@ plotDemographicSummary <- function(evaluation, type='train', fileName=NULL){
     x$age <- factor(x$age,levels=c(" 0-4"," 5-9"," 10-14",
                                    " 15-19"," 20-24"," 25-29"," 30-34"," 35-39"," 40-44",
                                    " 45-49"," 50-54"," 55-59"," 60-64"," 65-69"," 70-74",
-                                   " 75-79"," 80-84"," 85-89"," 90-94"," 95-99"),ordered=TRUE)
+                                   " 75-79"," 80-84"," 85-89"," 90-94"," 95-99","-1"),ordered=TRUE)
     
     x <- merge(x, ci[,c('ageGroup','genGroup','lower','upper')], by=c('ageGroup','genGroup'))
     
@@ -440,7 +454,7 @@ plotDemographicSummary <- function(evaluation, type='train', fileName=NULL){
 #' Create a plot showing the calibration
 #' #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -451,7 +465,7 @@ plotDemographicSummary <- function(evaluation, type='train', fileName=NULL){
 #' format.
 #'
 #' @export
-plotSparseCalibration <- function(evaluation, type='train', fileName=NULL){
+plotSparseCalibration <- function(evaluation, type='test', fileName=NULL){
   ind <- evaluation$calibrationSummary$Eval==type
   
   x<- evaluation$calibrationSummary[ind,c('averagePredictedProbability','observedIncidence')]
@@ -501,7 +515,7 @@ plotSparseCalibration <- function(evaluation, type='train', fileName=NULL){
 #' Create a plot showing the calibration
 #' #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -512,7 +526,7 @@ plotSparseCalibration <- function(evaluation, type='train', fileName=NULL){
 #' format.
 #'
 #' @export
-plotSparseCalibration2 <- function(evaluation, type='train', fileName=NULL){
+plotSparseCalibration2 <- function(evaluation, type='test', fileName=NULL){
   ind <- evaluation$calibrationSummary$Eval==type
   
   x<- evaluation$calibrationSummary[ind,c('averagePredictedProbability','observedIncidence', 'PersonCountAtRisk')]
@@ -522,6 +536,8 @@ plotSparseCalibration2 <- function(evaluation, type='train', fileName=NULL){
   x$lci <- cis[1,]  
   x$uci <- cis[2,]
   
+  maxes <- max(max(x$averagePredictedProbability), max(x$observedIncidence))*1.1
+  
   # TODO: CHECK INPUT
   limits <- ggplot2::aes(ymax = x$uci, ymin= x$lci)
   
@@ -529,13 +545,14 @@ plotSparseCalibration2 <- function(evaluation, type='train', fileName=NULL){
                           ggplot2::aes(x=averagePredictedProbability, y=observedIncidence
                           )) +
     ggplot2::geom_point(size=2, color='black') +
-    ggplot2::geom_errorbar(limits, width=0.005) +
-    ggplot2::geom_smooth(method=lm, se=F, colour='darkgrey') +
+    ggplot2::geom_errorbar(limits) +
+    #ggplot2::geom_smooth(method=lm, se=F, colour='darkgrey') +
+    ggplot2::geom_line(colour='darkgrey') +
     ggplot2::geom_abline(intercept = 0, slope = 1, linetype = 5, size=0.4,
                          show.legend = TRUE) +
     ggplot2::scale_x_continuous("Average Predicted Probability") +
     ggplot2::scale_y_continuous("Observed Fraction With Outcome") +
-    ggplot2::coord_cartesian(xlim = c(0, 1), ylim=c(0,1)) 
+    ggplot2::coord_cartesian(xlim = c(0, maxes), ylim=c(0,maxes)) 
   
   
   if (!is.null(fileName))
@@ -555,7 +572,7 @@ plotSparseCalibration2 <- function(evaluation, type='train', fileName=NULL){
 #' Create a plot showing the side-by-side boxplots of prediction distribution, by class
 #' #'
 #' @param evaluation            A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param type                  options: 'train' or test'
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
@@ -566,7 +583,7 @@ plotSparseCalibration2 <- function(evaluation, type='train', fileName=NULL){
 #' format.
 #'
 #' @export
-plotPredictionDistribution <- function(evaluation, type='train', fileName=NULL){
+plotPredictionDistribution <- function(evaluation, type='test', fileName=NULL){
   ind <- evaluation$predictionDistribution$Eval==type
   x<- evaluation$predictionDistribution[ind,]
 
@@ -611,7 +628,7 @@ plotPredictionDistribution <- function(evaluation, type='train', fileName=NULL){
 #' Create a plot showing the variable importance scatterplot
 #' #'
 #' @param covariateSummary      A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
 #'                              supported file formats.
@@ -622,12 +639,20 @@ plotPredictionDistribution <- function(evaluation, type='train', fileName=NULL){
 #'
 #' @export
 plotVariableScatterplot <- function(covariateSummary, fileName=NULL){
+  
+  # remove the non-incidence variables from the plot
+  covariateSummary <- covariateSummary[covariateSummary$CovariateMeanWithNoOutcome <= 1,]
+  
+  covariateSummary$size <- rep(0.1, nrow(covariateSummary))
+  covariateSummary$size[covariateSummary$covariateValue!=0] <- 0.5
  
   plot <- ggplot2::ggplot(covariateSummary, ggplot2::aes(y=CovariateMeanWithOutcome, 
                                                          x=CovariateMeanWithNoOutcome,
-                                                         size=abs(covariateValue)+0.1)) +
-          ggplot2::geom_point(ggplot2::aes(color = covariateValue)) +
-          ggplot2::scale_size(range = c(0, 5)) +
+                                                         #size=abs(covariateValue)+0.1
+                                                         size=size
+                                                         )) +
+          ggplot2::geom_point(ggplot2::aes(color = size)) +
+          ggplot2::scale_size(range = c(0, 1)) +
           ggplot2::scale_colour_gradient2(low = "red",mid = "blue", high="green") +
     ggplot2::scale_y_continuous("Outcome Covariate Mean") +
     ggplot2::scale_x_continuous("Non-outcome Covariate Mean") + 
@@ -645,7 +670,7 @@ plotVariableScatterplot <- function(covariateSummary, fileName=NULL){
 #' Create a plot showing the train/test generalizability diagnostic
 #' #'
 #' @param covariateSummary      A prediction object as generated using the
-#'                              \code{\link{RunPlp}} function.
+#'                              \code{\link{runPlp}} function.
 #' @param fileName              Name of the file where the plot should be saved, for example
 #'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
 #'                              supported file formats.
@@ -659,6 +684,8 @@ plotGeneralizability<- function(covariateSummary, fileName=NULL){
   
   covariateSummary$TrainCovariateMeanWithOutcome[is.na(covariateSummary$TrainCovariateMeanWithOutcome)] <- 0
   covariateSummary$TestCovariateMeanWithOutcome[is.na(covariateSummary$TestCovariateMeanWithOutcome)] <- 0
+  
+  covariateSummary <- covariateSummary[covariateSummary$TrainCovariateMeanWithOutcome <= 1,]
   
   plot1 <- ggplot2::ggplot(covariateSummary, 
                           ggplot2::aes(TrainCovariateMeanWithOutcome, 
@@ -687,5 +714,38 @@ plotGeneralizability<- function(covariateSummary, fileName=NULL){
   plot <- gridExtra::grid.arrange(plot1, plot2, ncol=2)
   if (!is.null(fileName))
     ggplot2::ggsave(fileName, plot, width = 5, height = 3.5, dpi = 400)
+  return(plot)
+}
+
+#' Plot the plearning curve using the data frame
+#'
+#' @details
+#' Create a plot showing thelearnign curve using output from createLearningCurve
+#'
+#' @param learningCurve         A results object as generated using the
+#'                              \code{\link{createLearningCurve}} function.
+#' @param title                 plot title
+#' @param fileName              Name of the file where the plot should be saved, for example
+#'                              'plot.png'. See the function \code{ggsave} in the ggplot2 package for
+#'                              supported file formats.
+#' @param xlabel                 The label informaiton of plot x-axis
+#' @return
+#' A ggplot object. Use the \code{\link[ggplot2]{ggsave}} function to save to file in a different
+#' format.
+#'
+#' @export
+plotLearningCurve <- function(learningCurve, title=" ", xlabel="Training Size", fileName=NULL){
+  plot<- ggplot2::ggplot(learningCurve, ggplot2::aes(x)) +
+    ggplot2::geom_line(ggplot2::aes(y=as.numeric(trainAUC)),
+              colour="red") +
+    ggplot2::geom_line(ggplot2::aes(y=as.numeric(testAUC)),
+              colour="green")+
+    ggplot2::xlab(xlabel) +
+    ggplot2::ylab("AUC") +
+    ggplot2::ggtitle(title) + ggplot2::coord_cartesian(ylim=c(0.5, 1)) +
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
+  
+  if (!is.null(fileName))
+    ggplot2::ggsave(fileName, plot, width = 5, height = 4.5, dpi = 400)
   return(plot)
 }

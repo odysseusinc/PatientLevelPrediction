@@ -36,6 +36,13 @@
 #' @export
 predictPlp <- function(plpModel, population, plpData,  index=NULL){
   
+  if(is.null(plpModel))
+    stop('No model input')
+  if(is.null(population))
+    stop('No population input')
+  if(is.null(plpData))
+    stop('No plpData input')
+  
   # apply the feature transformations
   if(!is.null(index)){
     flog.trace(paste0('Calculating prediction for ',sum(index$index<0),' in test set'))
@@ -93,7 +100,7 @@ predict.xgboost <- function(plpModel,population, plpData, ...){
 predict.python <- function(plpModel, population, plpData){
   
   # connect to python if not connected
-  if ( !PythonInR::pyIsConnected() ){ 
+  if ( !PythonInR::pyIsConnected() || .Platform$OS.type=="unix"){ 
     PythonInR::pyConnect()
     PythonInR::pyOptions("numpyAlias", "np")
     PythonInR::pyOptions("useNumpy", TRUE)
@@ -112,14 +119,34 @@ predict.python <- function(plpModel, population, plpData){
   PythonInR::pySet("dense", plpModel$dense)
   PythonInR::pySet("model_loc", plpModel$model)
   
+  
   flog.info('Mapping covariates...')
   #load python model mapping.txt
   # create missing/mapping using plpData$covariateRef
+  #missingGender <- plpData$metaData$deletedCovariateIds[plpData$metaData$deletedCovariateIds%in%c(8507,8532)]
+  #missingAge <- plpData$metaData$deletedCovariateIds[plpData$metaData$deletedCovariateIds%in%(11:29)]
+  # 3) demographicSummary
+  #if (length(missingGender) == 0 | length(missingAge) == 0) {
+  if (plpModel$modelSettings$model == 'fitCNNTorch' | plpModel$modelSettings$model == 'fitRNNTorch'){
+	  covariates <- plpData$covariates
+  	  covariates$rowIdPython <- covariates$rowId -1 #to account for python/r index difference
+      PythonInR::pySet('covariates', as.matrix(covariates[,c('rowIdPython','covariateId','timeId', 'covariateValue')]))
+	    PythonInR::pySet("modeltype", 'temporal')
+	    python_dir <- system.file(package='PatientLevelPrediction','python')
+	    PythonInR::pySet("python_dir", python_dir)
+  } else{
   newData <- toSparsePython(plpData, population, map=plpModel$covariateMap)
-  
+  PythonInR::pySet("modeltype", 'normal')
+  PythonInR::pySet("autoencoder", 0)
+  if (plpModel$modelSettings$model == 'fitLRTorch' | plpModel$modelSettings$model == 'fitMLPTorch'){
+    if (plpModel$modelSettings$modelParameters$autoencoder){
+      PythonInR::pySet("autoencoder", 1)
+    }
+  }
   included <- plpModel$varImp$covariateId[plpModel$varImp$included>0] # does this include map?
   included <- newData$map$newIds[newData$map$oldIds%in%included]-1 # python starts at 0, r at 1
   PythonInR::pySet("included", as.matrix(sort(included)))
+  }
 
   # save population
   if('indexes'%in%colnames(population)){
@@ -277,7 +304,6 @@ predictFfdf <- function(coefficients, population, covariates, modelType = "logis
 #'
 #' @export
 bySumFf <- function(values, bins) {
-  .bySum(values, bins)
-  # .Call('PatientLevelPrediction_bySum', PACKAGE = 'PatientLevelPrediction', values, bins)
+  bySum(values, bins)
 }
 

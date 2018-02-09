@@ -4,11 +4,11 @@
 \alias{plotSparseRoc}
 \title{Plot the ROC curve using the sparse thresholdSummary data frame}
 \usage{
-plotSparseRoc(evaluation, type = "train", fileName = NULL)
+plotSparseRoc(evaluation, type = "test", fileName = NULL)
 }
 \arguments{
 \item{evaluation}{A prediction object as generated using the
-\code{\link{RunPlp}} function.}
+\code{\link{runPlp}} function.}
 
 \item{type}{options: 'train' or test'}
 

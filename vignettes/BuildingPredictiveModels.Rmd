@@ -61,16 +61,12 @@ Before installing the `PatientLevelPrediction` package make sure you have Java a
 
 Furthermore, a python installation is required for some of the machine learning algorithms. We advise to install Python using Anaconda (https://www.continuum.io/downloads)
 
-The `PatientLevelPrediction` package is currently maintained in a GitHub repository (https://github.com/OHDSI/PatientLevelPrediction), and has dependencies on other packages in Github. All of these packages can be downloaded and installed from within R using the `devtools` package:
+The `PatientLevelPrediction` package is currently maintained in a GitHub repository (https://github.com/OHDSI/PatientLevelPrediction), and has dependencies on other packages in Github. All of these packages can be downloaded and installed from within R using the `drat` package:
 
 ```{r tidy=TRUE,eval=FALSE}
-install.packages("devtools")
-library(devtools)
-install_github("ohdsi/SqlRender") 
-install_github("ohdsi/DatabaseConnector") 
-install_github("ohdsi/Cyclops") 
-install_github("ohdsi/FeatureExtraction")
-install_github("ohdsi/PatientLevelPrediction") 
+  install.packages("drat")
+  drat::addRepo("OHDSI")
+  install.packages("PatientLevelPrediction")
 ```
 
 Once installed, you can type `library(PatientLevelPrediction)` to load the package.
@@ -210,51 +206,21 @@ data.frame(cohort_definition_id = c(1, 2),count = c(527616, 221555))
 
 ## Extracting the data from the server
 
-Now we can tell `PatientLevelPrediction` to extract all necessary data for our analysis. This is done using the `FeatureExtractionPackage` available at https://github.com/OHDSI/FeatureExtration. In short the FeatureExtractionPackage allows you to specify which features (covariates) need to be extracted, e.g. all conditions and drug exposures. It also supports the creation of custom covariates. For more detailed information on the FeatureExtractionPackage see its vignettes.
+Now we can tell `PatientLevelPrediction` to extract all necessary data for our analysis. This is done using the `FeatureExtractionPackage` available at https://github.com/OHDSI/FeatureExtration. In short the FeatureExtractionPackage allows you to specify which features (covariates) need to be extracted, e.g. all conditions and drug exposures. It also supports the creation of custom covariates. For more detailed information on the FeatureExtraction package see its vignettes.
 
 ```{r tidy=FALSE,eval=FALSE}		   
-covariateSettings <- createCovariateSettings(useCovariateDemographics = TRUE,
-                                             useCovariateConditionOccurrence = TRUE,
-                                             useCovariateConditionOccurrence365d = TRUE,
-                                             useCovariateConditionOccurrence30d = TRUE,
-                                             useCovariateConditionOccurrenceInpt180d = TRUE,
-                                             useCovariateConditionEra = TRUE,
-                                             useCovariateConditionEraEver = TRUE,
-                                             useCovariateConditionEraOverlap = TRUE,
-                                             useCovariateConditionGroup = TRUE,
-                                             useCovariateDrugExposure = TRUE,
-                                             useCovariateDrugExposure365d = TRUE,
-                                             useCovariateDrugExposure30d = TRUE,
-                                             useCovariateDrugEra = TRUE,
-                                             useCovariateDrugEra365d = TRUE,
-                                             useCovariateDrugEra30d = TRUE,
-                                             useCovariateDrugEraOverlap = TRUE,
-                                             useCovariateDrugEraEver = TRUE,
-                                             useCovariateDrugGroup = TRUE,
-                                             useCovariateProcedureOccurrence = TRUE,
-                                             useCovariateProcedureOccurrence365d = TRUE,
-                                             useCovariateProcedureOccurrence30d = TRUE,
-                                             useCovariateProcedureGroup = TRUE,
-                                             useCovariateObservation = TRUE,
-                                             useCovariateObservation365d = TRUE,
-                                             useCovariateObservation30d = TRUE,
-                                             useCovariateObservationCount365d = TRUE,
-                                             useCovariateMeasurement = TRUE,
-                                             useCovariateMeasurement365d = TRUE,
-                                             useCovariateMeasurement30d = TRUE,
-                                             useCovariateMeasurementCount365d = TRUE,
-                                             useCovariateMeasurementBelow = TRUE,
-                                             useCovariateMeasurementAbove = TRUE,
-                                             useCovariateConceptCounts = TRUE,
-                                             useCovariateRiskScores = TRUE,
-                                             useCovariateRiskScoresCharlson = TRUE,
-                                             useCovariateRiskScoresDCSI = TRUE,
-                                             useCovariateRiskScoresCHADS2 = TRUE,
-                                             useCovariateRiskScoresCHADS2VASc = TRUE,
-                                             useCovariateInteractionYear = FALSE,
-                                             useCovariateInteractionMonth = FALSE,
-                                             excludedCovariateConceptIds = c(),
-                                             deleteCovariatesSmallCount = 100)
+covariateSettings <- createCovariateSettings(useDemographicsGender = TRUE,
+  useDemographicsAge = TRUE, useDemographicsAgeGroup = TRUE,
+  useDemographicsRace = TRUE, useDemographicsEthnicity = TRUE,
+  useConditionOccurrenceLongTerm = TRUE,
+  useDrugExposureLongTerm = TRUE,
+  useProcedureOccurrenceLongTerm = TRUE,
+  useMeasurementLongTerm = TRUE,
+  useObservationLongTerm = TRUE,
+  useDistinctConditionCountLongTerm =TRUE,
+  useVisitCountLongTerm = TRUE, 
+  longTermStartDays = -365,
+  endDays = -1)
 
 
 ```
@@ -268,7 +234,7 @@ plpData <- getPlpData(connectionDetails = connectionDetails,
                       cohortDatabaseSchema = cohortsDatabaseSchema,
                       cohortTable = "rehospitalization",
                       cohortId = 1,
-                      washoutWindow = 183,
+                      washoutPeriod = 183,
                       covariateSettings = covariateSettings,
                       outcomeDatabaseSchema = cohortsDatabaseSchema,
                       outcomeTable = "rehospitalization",
@@ -278,16 +244,6 @@ plpData <- getPlpData(connectionDetails = connectionDetails,
 
 Note that if the cohorts are created in ATLAS the corresponding database schemas need to be selected. There are many additional parameters for the `getPlpData` function which are all documented in the `PatientLevelPrediction` manual. The resulting `plpData` object uses the package `ff` to store information in a way that ensures R does not run out of memory, even when the data are large. 
 
-We can get some overall statistics using the generic `summary()` method:
-
-```{r tidy=FALSE,eval=FALSE}
-summary(plpData)
-```
-```{r echo=FALSE,message=FALSE,eval=TRUE}
-if (file.exists(vignetteDataFolder)){
-  summary(plpData)
-}
-```
 
 ## Saving the data to file
 
@@ -330,12 +286,14 @@ Note that some of these constraints could also already be applied in the cohort 
 
 | Models                      | Python | Parameters                              |
 | ----------------------------| ------ | --------------------------------------- |
-| Logistic regression with regularization | No | var  (starting  variance)|
-| Gradient boosting machines              | No | ntree (number of trees), max depth (max levels in tree), min rows (minimum data points in in node), learning rate |
-| Random forest                           | Yes | mtry  (number  of  features  in  each  tree),ntree (number of trees), max depth (max levels in tree), min rows (minimum data points in in node),balance (balance class labels) | 
+| Logistic regression with regularization | No | var  (starting  variance), seed |
+| Gradient boosting machines              | No | ntree (number of trees), max depth (max levels in tree), min rows (minimum data points in in node), learning rate, seed  |
+| Random forest                           | Yes | mtry  (number  of  features  in  each  tree),ntree (number of trees), max depth (max levels in tree), min rows (minimum data points in in node),balance (balance class labels), seed  | 
 | K-nearest neighbors                     | No | k (number   of   neighbours),weighted (weight by inverse frequency)  |   
 | Naive Bayes                             | Yes | none|
-
+| AdaBoost           | Yes                      | n_estimators (the maximum number of estimators at which boosting is terminated), learning_rate (learning rate shrinks the contribution of each classifier by learning_rate. There is a trade-off between learning_rate and n_estimators)|
+|Decision Tree | Yes | max_depth (the maximum depth of the tree), min_samples_split,min_samples_leaf, min_impurity_split (threshold for early stopping in tree growth. A node will split if its impurity is above the threshold, otherwise it is a leaf.), seed,class_weight ("Balance"" or "None") |
+| Multilayer Perception | Yes | size (the number of hidden nodes), alpha (the l2 regularisation), seed |
 
 The table shows the currently implemented algorithms and their hyper-parameters. Some of these algorithms are calling python.In the settings function of the algorithm the user can specify a list of eligible values for each hyper-parameter. All possible combinations of the hyper-parameters are included in a so-called grid search using cross-validation on the training set. If a user does not specify any value then the default value is used instead.
 
@@ -511,13 +469,13 @@ validationResults <- applyModel(population,plpData,plpModel)
 
 Considerable work has been dedicated to provide the `PatientLevelPrediction` package.
 
-```{r tidy=TRUE,evale=TRUE}
+```{r tidy=TRUE,eval=TRUE}
 citation("PatientLevelPrediction")
 ```
 
 Further, `PatientLevelPrediction` makes extensive use of the `Cyclops` package.
 
-```{r tidy=TRUE,evale=TRUE}
+```{r tidy=TRUE,eval=TRUE}
 citation("Cyclops")
 ```
 

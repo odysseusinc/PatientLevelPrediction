@@ -54,7 +54,7 @@
 ##                                                                 startingVariance = 0.001,
 ##                                                                 threads = 10))
 ##    model$coefficients <- model$coefficients[model$coefficients != 0]
-##   outcomeModels[[i]] <- model$coefficients
+##    outcomeModels[[i]] <- model$coefficients
 ##  }
 ##  
 ##  writeLines("Computing time distribution")
@@ -174,7 +174,10 @@ simulatePlpData <- function(plpDataSimulationProfile, n = 10000) {
 
   temp <- list(cohortId = 0,
                studyStartDate = NULL,
-               studyEndDate = NULL)
+               studyEndDate = NULL,
+               attrition= data.frame(outcomeId=2,description='Simulated data', 
+                                      targetCount=nrow(cohorts), uniquePeople=nrow(cohorts), 
+                                      outcomes=nrow(outcomes)))
   attr(cohorts, "metaData") <- temp
   
   result <- list(outcomes = outcomes,

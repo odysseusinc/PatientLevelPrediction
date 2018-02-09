@@ -16,7 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#' RunPlp - Train and evaluate the model
+#' runPlp - Train and evaluate the model
 #'
 #' @description
 #' This provides a general framework for training patient level prediction models.  The user can select 
@@ -34,6 +34,7 @@
 #' @param population                       The population created using createStudyPopulation() who will be used to develop the model
 #' @param plpData                          An object of type \code{plpData} - the patient level prediction
 #'                                         data extracted from the CDM.
+#' @param minCovariateFraction             The minimum fraction of target population who must have a covariate for it to be included in the model training                            
 #' @param modelSettings                    An object of class \code{modelSettings} created using one of the function:
 #'                                         \itemize{
 #'                                         \item{logisticRegressionModel()}{ A lasso logistic regression model}
@@ -106,8 +107,8 @@
 #' #70% in train set where the model hyper-parameters are selected using 3-fold cross validation:
 #' #and results are saved to file.path('C:','User','home')
 #' model.lr <- lassoLogisticRegression.set()
-#' mod.lr <- RunPlp(population=population,
-#'                         plpData= plpData,
+#' mod.lr <- runPlp(population=population,
+#'                         plpData= plpData, minCovariateFraction = 0.001,
 #'                         modelSettings = model.lr ,
 #'                         testSplit = 'time', testFraction=0.3, 
 #'                         nfold=3, indexes=NULL,
@@ -120,14 +121,14 @@
 #' model.gbm <- gradientBoostingMachine.set(rsampRate=c(0.5,0.9,1),csampRate=1, 
 #'                            ntrees=c(10,100), bal=c(F,T),
 #'                            max_depth=c(4,5), learn_rate=c(0.1,0.01))
-#' mod.gbm <- RunPlp(population=population,
+#' mod.gbm <- runPlp(population=population,
 #'                         plpData= plpData,
 #'                         modelSettings = model.gbm,
 #'                         testSplit = 'time', testFraction=0.3, 
 #'                         nfold=3, indexes=mod.lr$indexes,
 #'                         save=file.path('C:','User','home'))
 #' } 
-RunPlp <- function(population, plpData,
+runPlp <- function(population, plpData,  minCovariateFraction = 0.001,
                    modelSettings,
                    testSplit = 'time', testFraction=0.25, splitSeed=NULL, nfold=3, indexes=NULL,
                    save=NULL, saveModel=T,
@@ -184,9 +185,10 @@ RunPlp <- function(population, plpData,
   flog.trace('Parameter Check Started')
   checkInStringVector(testSplit, c('person','time'))
   checkHigherEqual(sum(population[,'outcomeCount']>0), 25)
-  checkIsClass(plpData, c('plpData.coo','plpData'))
+  checkIsClass(plpData, c('plpData'))
   checkIsClass(testFraction, 'numeric')
   checkHigher(testFraction,0)
+  checkHigher(-1*testFraction,-1)
   checkIsClass(nfold, 'numeric')
   checkHigher(nfold, 0)
   
@@ -218,12 +220,16 @@ RunPlp <- function(population, plpData,
   population <- merge(population, indexes)
   colnames(population)[colnames(population)=='index'] <- 'indexes'
   attr(population, "metaData") <- tempmeta
+  cleanData =  TRUE
+  if (modelSettings$model == 'fitCNNTorch' | modelSettings$model == 'fitRNNTorch'){
+    cleanData = FALSE
+  }
   
-  settings <- list(data=plpData,
+  settings <- list(data=plpData, minCovariateFraction=minCovariateFraction,
                    modelSettings = modelSettings,
                    population=population,
                    cohortId=cohortId,
-                   outcomeId=outcomeId)
+                   outcomeId=outcomeId, cleanData = cleanData)
   
   flog.info(sprintf('Training %s model',settings$modelSettings$name))  
   # the call is sinked because of the external calls (Python etc)
@@ -245,6 +251,12 @@ RunPlp <- function(population, plpData,
     modelLoc <- file.path(save,analysisId, 'savedModel' )
     ftry(savePlpModel(model, modelLoc),finally= flog.trace('Done.'))
     flog.info(paste0('Model saved to ..\\',analysisId,'\\savedModel'))
+    
+    #update the python saved location
+    if(attr(model, 'type')=='python' ){
+      model$model <- file.path(modelLoc,'python_model')
+      model$predict <- createTransform(model, cleanData = cleanData)
+    }
   }
   
   # calculate metrics
@@ -258,14 +270,14 @@ RunPlp <- function(population, plpData,
     attr(prediction, "metaData")$analysisId <- analysisId
     
     flog.info('Train set evaluation')
-    performance.train <- evaluatePlp(prediction[prediction$indexes>0,], plpData)
+    performance.train <- evaluatePlp(prediction[prediction$indexes>0,], plpData, model = modelSettings$model)
     flog.trace('Done.')
     flog.info('Test set evaluation')
-    performance.test <- evaluatePlp(prediction[prediction$indexes<0,], plpData)
+    performance.test <- evaluatePlp(prediction[prediction$indexes<0,], plpData, model = modelSettings$model)
     flog.trace('Done.')
     
     # now combine the test and train data and add analysisId
-    performance <- reformatPerformance(train=performance.train, test=performance.test, analysisId)
+    performance <- reformatPerformance(train=performance.train, test=performance.test, analysisId, plpData)
     
     if(!is.null(save)){
       flog.trace('Saving evaluation')
@@ -304,7 +316,8 @@ RunPlp <- function(population, plpData,
                        populationSettings=attr(population, "metaData"),
                        modelSettings = modelSettings,
                        testSplit = testSplit, 
-                       testFraction= testFraction)
+                       testFraction= testFraction,
+                       nfold=nfold)
   
   # 2) Executionsummary details:
   executionSummary <- list(PackageVersion = list(rVersion= R.Version()$version.string,
@@ -323,10 +336,12 @@ RunPlp <- function(population, plpData,
   flog.info(paste0('Calculating covariate summary @ ', Sys.time()))
   flog.info('This can take a while...')
   covSummary <- covariateSummary(plpData, population)
-  covSummary <- merge(model$varImp, covSummary, by='covariateId', all=T)
+  covSummary <- merge(model$varImp[,colnames(model$varImp)!='covariateName'], covSummary, by='covariateId', all=T)
   trainCovariateSummary <- covariateSummary(plpData, population[population$index>0,])
+  trainCovariateSummary <- trainCovariateSummary[,colnames(trainCovariateSummary)!='covariateName']
   colnames(trainCovariateSummary)[colnames(trainCovariateSummary)!='covariateId'] <- paste0('Train',colnames(trainCovariateSummary)[colnames(trainCovariateSummary)!='covariateId'])
   testCovariateSummary <- covariateSummary(plpData, population[population$index<0,])
+  testCovariateSummary <- testCovariateSummary[,colnames(testCovariateSummary)!='covariateName']
   colnames(testCovariateSummary)[colnames(testCovariateSummary)!='covariateId'] <- paste0('Test',colnames(testCovariateSummary)[colnames(testCovariateSummary)!='covariateId'])
   covSummary <- merge(covSummary,trainCovariateSummary, by='covariateId', all=T)
   covSummary <- merge(covSummary,testCovariateSummary, by='covariateId', all=T)
@@ -348,7 +363,7 @@ RunPlp <- function(population, plpData,
                   analysisRef=list(analysisId=analysisId,
                                    analysisName=NULL,#analysisName,
                                    analysisSettings= NULL))
-  class(results) <- c('list','plpModel')
+  class(results) <- c('runPlp')
   
   flog.info(paste0('Log saved to ',logFileName))  
   flog.info("Run finished successfully.")
@@ -360,16 +375,48 @@ RunPlp <- function(population, plpData,
 #' @export
 summary.plpModel <- function(object, ...) {
   
+  if(object$model$modelSettings$model=="lr_lasso")
+    hyper <-  paste0("The final model hyper-parameters were - variance: ",format(as.double(object$model$hyperParamSearch['priorVariance']), digits = 5))
+  if(is.null(object$model$hyperParamSearch)){
+    hyper <- 'No hyper-parameters...'
+  } else {
+    finalmod <- object$model$hyperParamSearch[which.max(object$model$hyperParamSearch$cv_auc),]
+    finalmod <- finalmod[,!colnames(finalmod)%in%c('seed','cv_auc')]
+    hyper <- paste0("The final model hyper-parameters were -", 
+                    paste(colnames(finalmod), finalmod, collapse='; ', sep=': ')
+    )
+  }
+  
+  writeLines(paste0("The study was started at: ", object$executionSummary$ExecutionDateTime, 
+                   " and took at total of ", as.double(object$executionSummary$TotalExecutionElapsedTime, unit='mins'),
+                   " minutes.  ", hyper))
+  
+  aucInd <- object$performanceEvaluation$evaluationStatistics[,'Eval']=='test' & 
+            object$performanceEvaluation$evaluationStatistics[,'Metric']%in%c('auc','AUC.auc')
+  
+  brierScoreInd <- object$performanceEvaluation$evaluationStatistics[,'Eval']=='test' & 
+    object$performanceEvaluation$evaluationStatistics[,'Metric']%in%c('BrierScore')
+  
+  brierScaledInd <- object$performanceEvaluation$evaluationStatistics[,'Eval']=='test' & 
+    object$performanceEvaluation$evaluationStatistics[,'Metric']%in%c('BrierScaled')
+  
+  calibrationSlopeInd <- object$performanceEvaluation$evaluationStatistics[,'Eval']=='test' & 
+    object$performanceEvaluation$evaluationStatistics[,'Metric']%in%c('CalibrationSlope.Gradient')
+  
+  calibrationInterceptInd <- object$performanceEvaluation$evaluationStatistics[,'Eval']=='test' & 
+    object$performanceEvaluation$evaluationStatistics[,'Metric']%in%c('CalibrationIntercept.Intercept')
+  
   result <- list(cohortId=attr(object$prediction, "metaData")$cohortId,
                  outcomeId=attr(object$prediction, "metaData")$outcomeId,
                  model= object$model$modelSettings$model,
                  parameters = object$model$modelSettings$param,
+                 hyperParamsearch = object$model$hyperParamSearch,
                  elaspsedTime = object$executionSummary$TotalExecutionElapsedTime,
-                 AUC = object$performanceEvaluationTest$evaluationStatistics$AUC,
-                 BrierScore = object$performanceEvaluationTest$evaluationStatistics$BrierScore,
-                 BrierScaled = object$performanceEvaluationTest$evaluationStatistics$BrierScaled,
-                 calibrationIntercept = object$performanceEvaluationTest$evaluationStatistics$calibrationIntercept,
-                 CalibrationSlope = object$performanceEvaluationTest$evaluationStatistics$CalibrationSlope
+                 AUC = object$performanceEvaluation$evaluationStatistics[aucInd,'Value'],
+                 BrierScore = object$performanceEvaluation$evaluationStatistics[brierScoreInd,'Value'],
+                 BrierScaled = object$performanceEvaluation$evaluationStatistics[brierScaledInd,'Value'],
+                 CalibrationIntercept = object$performanceEvaluation$evaluationStatistics[calibrationInterceptInd,'Value'],
+                 CalibrationSlope = object$performanceEvaluation$evaluationStatistics[calibrationSlope,'Value']
                  
   )
   class(result) <- "summary.plpModel"
@@ -441,10 +488,33 @@ covariateSummary <- function(plpData, population){
   prevs <- merge(merge(allPeople,outPeople, all=T), noOutPeople, all=T)
   prevs[is.na(prevs)] <- 0
   
+  prevs <- merge(ff::as.ram(plpData$covariateRef[,c('covariateName','covariateId')]), prevs, by='covariateId')
+  
   return(prevs)
   
 }
 
-
-
-
+characterize <- function(plpData, population, N=1){
+  #===========================
+  # all 
+  #===========================
+  popCount <- nrow(plpData$cohorts)
+  if(!missing(population)){
+    ppl <- ff::as.ff(population$rowId)
+    idx <- ffbase::ffmatch(x = plpData$covariates$rowId, table = ppl)
+    idx <- ffbase::ffwhich(idx, !is.na(idx))
+    covariates <- plpData$covariates[idx, ]
+    popCount <- nrow(population)
+  }
+  
+  covariates$ones <- ff::as.ff(rep(1, length(covariates$covariateValue)))
+  grp_qty <- bySumFf(covariates$ones, covariates$covariateId)
+  
+  ind <- ff::as.ram(grp_qty)>=N
+  
+  allPeople <- data.frame(covariateId=ff::as.ram(grp_qty$bins)[ind], 
+                          CovariateCount=ff::as.ram(grp_qty$sums)[ind],
+                          CovariateFraction = ff::as.ram(grp_qty$sums)[ind]/popCount)
+  
+  return(allPeople)
+}

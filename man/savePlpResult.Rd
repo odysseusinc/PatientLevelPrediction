@@ -7,7 +7,7 @@
 savePlpResult(result, dirPath)
 }
 \arguments{
-\item{result}{The result of running RunPlp()}
+\item{result}{The result of running runPlp()}
 
 \item{dirPath}{The directory to save the csv}
 }
