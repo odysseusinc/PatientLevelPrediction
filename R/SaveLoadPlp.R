@@ -142,10 +142,16 @@ getPlpData <- function(connectionDetails,
   
   writeLines("\nConstructing the at risk cohort")
   if(!is.null(sampleSize))  writeLines(paste("\n Sampling ",sampleSize, " people"))
+
+  sessionId <- SqlRender::generateSessionId()
+  print("new sessionId")
+  print(sessionId)
+
   renderedSql <- SqlRender::loadRenderTranslateSql("CreateCohorts.sql",
                                                    packageName = "PatientLevelPrediction",
                                                    dbms = dbms,
                                                    oracleTempSchema = oracleTempSchema,
+                                                   sessionId = sessionId,
                                                    cdm_database_schema = cdmDatabaseSchema,
                                                    cohort_database_schema = cohortDatabaseSchema,
                                                    cohort_table = cohortTable,
@@ -166,6 +172,7 @@ getPlpData <- function(connectionDetails,
                                                  packageName = "PatientLevelPrediction",
                                                  dbms = dbms,
                                                  oracleTempSchema = oracleTempSchema,
+                                                 sessionId = sessionId,
                                                  cdm_version = cdmVersion)
   cohorts <- DatabaseConnector::querySql(connection, cohortSql)
   colnames(cohorts) <- SqlRender::snakeCaseToCamelCase(colnames(cohorts))
@@ -182,6 +189,7 @@ getPlpData <- function(connectionDetails,
   #covariateSettings$useCovariateCohortIdIs1 <- TRUE
   covariateData <- FeatureExtraction::getDbCovariateData(connection = connection,
                                                          oracleTempSchema = oracleTempSchema,
+                                                         sessionId = sessionId,
                                                          cdmDatabaseSchema = cdmDatabaseSchema,
                                                          cdmVersion = cdmVersion,
                                                          cohortTable = "#cohort_person",
@@ -195,6 +203,7 @@ getPlpData <- function(connectionDetails,
                                                   packageName = "PatientLevelPrediction",
                                                   dbms = dbms,
                                                   oracleTempSchema = oracleTempSchema,
+                                                  sessionId = sessionId,
                                                   cdm_database_schema = cdmDatabaseSchema,
                                                   outcome_database_schema = outcomeDatabaseSchema,
                                                   outcome_table = outcomeTable,
@@ -220,7 +229,8 @@ getPlpData <- function(connectionDetails,
   renderedSql <- SqlRender::loadRenderTranslateSql("RemoveCohortTempTables.sql",
                                                    packageName = "PatientLevelPrediction",
                                                    dbms = dbms,
-                                                   oracleTempSchema = oracleTempSchema)
+                                                   oracleTempSchema = oracleTempSchema,
+                                                   sessionId = sessionId)
   DatabaseConnector::executeSql(connection, renderedSql, progressBar = FALSE, reportOverallTime = FALSE)
   DatabaseConnector::disconnect(connection)
   
